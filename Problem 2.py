@@ -106,7 +106,7 @@ F4 = 120
 D[0, :] = F3
 D[1, :] = F4
 
-Qww = np.eye(2)*0.1
+Qww = np.eye(2)*1000
 Rvv = np.eye(4)*0.01
 
 T, X, Y, Z = sim.openloop_SDE(sys.f_SDE,sys.g_sensor,sys.h_sensor,t0,tf,x0,U,D,p,Qww,Rvv)

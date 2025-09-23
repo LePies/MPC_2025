@@ -28,12 +28,12 @@ print("Steady state (m):", xs)
 print("Steady state (h):", xs/(rho*np.array([A1,A2,A3,A4])))
 
 
-r = np.array([1.0, 2.0])  # Set point
+r = np.array([10.0, 10.0])  # Set point
 Kc = 0.8 #Kp = 4, Ki = 0.1, Kd = 0.5 
 Ti = 0.025*Kc
 Td = 0.8/Kc
 Ts = 1.0
-umin = 10
+umin = 1
 umax = 10000
 N = 0
 p_inputs = Kc, umin, umax

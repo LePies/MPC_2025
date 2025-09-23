@@ -63,7 +63,7 @@ def f_SDE(xt,ut,dt,delta_t,p,Qww):
 
     dw = np.random.multivariate_normal(mean=np.zeros(Qww.shape[0]), cov=Qww * delta_t) 
     xdot = f_modified(0,xt,ut,dt,p)*delta_t + diffusion_matrix(p)@dw
-
+    
     return xdot
 
 def diffusion_matrix(p):
