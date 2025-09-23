@@ -42,8 +42,10 @@ pid = pid.PIDController(Kp, Ki, Kd, r, 1, umin, umax)
 D = np.zeros((2, tf))
 D[0, :] = np.random.normal(F3, 1, size=tf)
 D[1, :] = np.random.normal(F4, 1, size=tf)
+delta_t = 1
+Qww = np.eye(2)*1000
 
-T, X, U, Y, Z = sim.closed_loop(sys.f_modified, sys.g_sensor, sys.h_sensor, t0, tf, x0, r, u0, D, p, Rvv, pid)
+T, X, U, Y, Z = sim.closed_loop(sys.f_SDE, sys.g_sensor, sys.h_sensor, t0, tf, x0, r, u0, D, delta_t,p, Qww, Rvv, pid)
 
 # Plotting example
 fig, axes = plt.subplots(2, 1, figsize=(8, 12), sharex=True)

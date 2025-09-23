@@ -64,7 +64,7 @@ def openloop_SDE(f,g,h,t0,tf,x0,U,D,p,Qww,Rvv):
         yt = g(xt,p,Rvv) # output 
         zt = h(yt) # measurement
 
-        xt = xt + f(xt,ut,dt,delta_t,p,Qww) 
+        xt = xt + f(t, xt, ut, dt, delta_t, p, Qww) 
 
         X[:,idx] = xt
         T[:,idx] = delta_t + t if idx == 0 else T[:,idx-1] + delta_t
@@ -73,7 +73,8 @@ def openloop_SDE(f,g,h,t0,tf,x0,U,D,p,Qww,Rvv):
 
     return T,X,Y,Z
 
-def closed_loop(f,g,h,t0,tf,x0,r,u0,D,p,Rvv,controller):
+import tqdm
+def closed_loop(f,g,h,t0,tf,x0,r,u0,D,delta_t,p,Qww,Rvv,controller):
     
     # name = controller.__name__.lower()
         # parse inputs based on controller type
@@ -93,8 +94,14 @@ def closed_loop(f,g,h,t0,tf,x0,r,u0,D,p,Rvv,controller):
 
     xt = x0
     ut = u0
-
-    for idx,t in enumerate(range(t0,tf)):
+    for idx, t in tqdm.tqdm(
+            enumerate(range(t0, tf)),
+            total=tf - t0,
+            desc="Simulating closed loop",
+            unit="step",
+            leave=True,
+            ncols=80,
+        ):
 
         yt = g(xt,p,Rvv) # output
         zt = h(yt) # measurement
@@ -110,7 +117,7 @@ def closed_loop(f,g,h,t0,tf,x0,r,u0,D,p,Rvv,controller):
         #     inputs = Kc,umin,umax
         #     ut = controller(ut,zt,r,inputs)
         ut = controller.update(zt)
-        sol = solve_ivp(f, (t,t+1), xt, method='RK45',args = (ut,dt,p))
+        sol = solve_ivp(f, (t,t+1), xt, method='RK45',args = (ut, dt, delta_t, p, Qww))
 
         xt = sol.y[:,-1]
         X[:,idx] = xt

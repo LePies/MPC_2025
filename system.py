@@ -2,7 +2,7 @@ import numpy as np
 import parameters_tank as para
 import scipy as sp
 
-def f(t,xt,ut,,dt,p):
+def f(t,xt,ut,p):
 
     # Unpack parameters
     m = xt
@@ -13,7 +13,7 @@ def f(t,xt,ut,,dt,p):
     g = p[10]
     rho = p[11:]
 
-    # Inflows
+    # Inflows 
     qin = np.array([gamma[0]*F[0],gamma[1]*F[1],(1-gamma[1])*F[1],(1-gamma[0])*F[0]])
 
     # Outflows
@@ -59,11 +59,11 @@ def f_modified(t,xt,ut,dt,p):
 
     return xdot[0]
     
-def f_SDE(xt,ut,dt,delta_t,p,Qww):
+def f_SDE(t,xt,ut,dt,delta_t,p,Qww):
 
-    dw = np.random.multivariate_normal(mean=np.zeros(Qww.shape[0]), cov=Qww * delta_t) 
+    dw = np.random.multivariate_normal(mean=np.zeros(Qww.shape[0]), cov=Qww * delta_t)
     xdot = f_modified(0,xt,ut,dt,p)*delta_t + diffusion_matrix(p)@dw
-    
+
     return xdot
 
 def diffusion_matrix(p):
