@@ -7,7 +7,7 @@ def f(t,xt,ut,p):
     # Unpack parameters
     m = xt
     F = ut 
-    a = p[:4]
+    a = p[:4] 
     A = p[4:8]
     gamma = p[8:10]
     g = p[10]
@@ -66,13 +66,13 @@ def f_SDE(xt,ut,dt,delta_t,p,Qww):
 
     return xdot
 
-def diffusion_matrix(p, s3=1e-2, s4=1e-2):
+def diffusion_matrix(p, s3=1, s4=1):
     rho = float(p[-1]) 
     G = rho * np.array([
         [0.0, 0.0],   # m1: no direct noise
         [0.0, 0.0],   # m2: no direct noise
-        [s3, 0.0],    # m3: noise from ω3
-        [0.0, s4],    # m4: noise from ω4
+        [1, 0.0],    # m3: noise from ω3
+        [0.0, 1],    # m4: noise from ω4
     ])
     return G
 

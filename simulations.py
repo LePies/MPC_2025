@@ -3,7 +3,7 @@ from scipy.integrate import solve_ivp
 
 
 def discrete_openloop(sys,t0,tf,x0,U,p,A,B,C):
-
+ 
     X = np.zeros([4,tf])
     T = np.zeros([1,tf])
 
@@ -64,7 +64,7 @@ def openloop_SDE(f,g,h,t0,tf,x0,U,D,p,Qww,Rvv):
         yt = g(xt,p,Rvv) # output
         zt = h(xt,p,Rvv) # measurement
 
-        xt = xt + f(xt,ut,dt,delta_t,p,Qww)
+        xt = xt + f(xt,ut,dt,delta_t,p,Qww) 
 
         X[:,idx] = xt
         T[:,idx] = delta_t + t if idx == 0 else T[:,idx-1] + delta_t

@@ -40,7 +40,7 @@ p_inputs = Kc, umin, umax
 pi_inputs = 0, Kc, Ti, Ts, umin, umax
 pid_inputs = 0, Kc, Ti, Ts,Td, umin, umax, 0
 
-
+ 
 #%% Determinitic open-loop simulation
 
 # Define disturbances

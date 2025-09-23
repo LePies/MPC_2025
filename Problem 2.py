@@ -6,7 +6,7 @@ import compute_steady_state as css
 import simulations as sim
 
 t0 = 0
-tf = 20*90
+tf = 20*90 
 m10 = 0
 m20 = 0
 m30 = 0
