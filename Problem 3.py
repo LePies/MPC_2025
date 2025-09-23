@@ -48,7 +48,9 @@ D = np.zeros((2, tf))
 D[0, :] = F3
 D[1, :] = F4 
 
-T,X,U,Y,Z = sim.closed_loop(sys.f,sys.g,sys.h,t0,tf,x0,r,u0,p,controllers.PID_controller,pid_inputs)
+Rvv = np.eye(4)*0.01
+
+T,X,U,Y,Z = sim.closed_loop(sys.f,sys.g,sys.h,t0,tf,x0,r,u0,p,Rvv,controllers.PID_controller,pid_inputs)
 
 # Plotting example
 fig, axes = plt.subplots(2, 1, figsize=(8, 12), sharex=True)
@@ -83,13 +85,7 @@ D[1, :] = F4
 
 Rvv = np.eye(4)*0.01
 
-# Step response
-step1 = 200         
-D[:, step1:] = np.array([F3 * 1.05, F4  * 1.05])[:, None]
-step2 = 600
-D[:, step2:] = np.array([F3 * 1.1, F4  * 1.1])[:, None]  
-
-T,X,U,Y,Z = sim.closed_loop(sys.f,sys.g_sensor,sys.h_sensor,t0,tf,x0,r,u0,p,controllers.PID_controller,pid_inputs)
+T,X,U,Y,Z = sim.closed_loop(sys.f,sys.g_sensor,sys.h_sensor,t0,tf,x0,r,u0,p,Rvv,controllers.PID_controller,pid_inputs)
 
 # Plotting example
 fig, axes = plt.subplots(2, 1, figsize=(8, 12), sharex=True)

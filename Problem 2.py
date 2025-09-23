@@ -71,21 +71,15 @@ axes[1].legend()
 D = np.zeros((2, tf))
 mu1 = np.array([100])
 mu2 = np.array([120])
-sigma1 = 0.1
-sigma2 = 0.1
-F3 = np.random.normal(mu1,sigma1)[0]
-F4 = np.random.normal(mu2,sigma2)[0] 
+sigma1 = np.sqrt(0.1)
+sigma2 = np.sqrt(0.1)
+F3 = np.random.normal(mu1,sigma1,size=tf)[0]
+F4 = np.random.normal(mu2,sigma2,size=tf)[0] 
 D[0, :] = F3
-D[1, :] = F4
+D[1, :] = F4 
 
 Rvv = np.eye(4)*0.01
-
-# Step response
-step1 = 200         
-D[:, step1:] = np.array([F3 * 1.05, F4  * 1.05])[:, None]
-step2 = 600
-D[:, step2:] = np.array([F3 * 1.1, F4  * 1.1])[:, None]  
-
+ 
 T, X, Y, Z = sim.openloop(sys.f_modified,sys.g_sensor,sys.h_sensor, t0, tf, x0, U, D, p,Rvv)
 
 # Plotting example
