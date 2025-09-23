@@ -41,7 +41,7 @@ pi_inputs = 0, Kc, Ti, Ts, umin, umax
 pid_inputs = 0, Kc, Ti, Ts,Td, umin, umax, 0
 
  
-#%% Determinitic open-loop simulation
+#%% Determinitic closed-loop simulation
 
 # Define disturbances
 D = np.zeros((2, tf))
@@ -70,7 +70,7 @@ axes[1].set_xlabel('Time [s]')
 axes[1].set_ylabel('Flow [m³/s]')
 axes[1].legend()
 
-#%% Open loop simulation of stochastic model
+#%% Closed loop simulation of stochastic model
 
 # Define stochastic distrubances
 D = np.zeros((2, tf))
