@@ -33,7 +33,7 @@ def openloop(f,g,h,t0,tf,x0,U,D,p,Rvv = 0):
         ut = U[:,idx]
         dt = D[:,idx]
         yt = g(xt,p,Rvv) # output
-        zt = h(xt,p,Rvv) # measurement
+        zt = h(yt) # measurement
 
         sol = solve_ivp(f, (t,t+1), xt, method='RK45',args = (ut,dt,p))
 
@@ -62,7 +62,7 @@ def openloop_SDE(f,g,h,t0,tf,x0,U,D,p,Qww,Rvv):
         ut = U[:,idx]
         dt = D[:,idx]
         yt = g(xt,p,Rvv) # output
-        zt = h(xt,p,Rvv) # measurement
+        zt = h(yt) # measurement
 
         xt = xt + f(xt,ut,dt,delta_t,p,Qww) 
 
@@ -96,7 +96,7 @@ def closed_loop(f,g,h,t0,tf,x0,r,u0,p,Rvv,controller,inputs):
     for idx,t in enumerate(range(t0,tf)):
 
         yt = g(xt,p,Rvv) # output
-        zt = h(xt,p,Rvv) # measurement
+        zt = h(yt) # measurement
 
         if name.startswith("pid"):
             inputs = i, Kc, Ti, Ts, Td, umin, umax, e

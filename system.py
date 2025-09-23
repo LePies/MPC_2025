@@ -66,7 +66,7 @@ def f_SDE(xt,ut,dt,delta_t,p,Qww):
 
     return xdot
 
-def diffusion_matrix(p, s3=1, s4=1):
+def diffusion_matrix(p):
     rho = float(p[-1]) 
     G = rho * np.array([
         [0.0, 0.0],   # m1: no direct noise
@@ -92,28 +92,22 @@ def g(xt,p,Rvv = 0):
 
 def g_sensor(xt,p,Rvv):
 
-    np.random.seed(42)  # For reproducibility
-
     y = g(xt,p) + np.random.multivariate_normal(np.zeros(Rvv.shape[0]),Rvv)
 
     return y
 
-def h_sensor(xt,p,Rvv):
+def h_sensor(yt):
     S = np.array([[1, 0, 0, 0],
                   [0, 1, 0, 0]])
-    z = S @ g_sensor(xt,p,Rvv)
+    z = S @ yt
 
     return z
 
-def h(xt,p,Rvv = 0):
+def h(yt):
 
-    rho = p[-1]
-    A = p[4:8]
-
-    h1 = xt[0]/ (rho*A[0])
-    h2 = xt[1]/ (rho*A[1])
-
-    z = np.array([h1.T,h2.T])
+    S = np.array([[1, 0, 0, 0],
+                  [0, 1, 0, 0]])
+    z = S @ yt
 
     return z
 
