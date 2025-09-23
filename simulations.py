@@ -73,17 +73,18 @@ def openloop_SDE(f,g,h,t0,tf,x0,U,D,p,Qww,Rvv):
 
     return T,X,Y,Z
 
-def closed_loop(f,g,h,t0,tf,x0,r,u0,p,Rvv,controller,inputs):
+def closed_loop(f,g,h,t0,tf,x0,r,u0,D,p,Rvv,controller):
     
-    name = controller.__name__.lower()
+    # name = controller.__name__.lower()
         # parse inputs based on controller type
-    if name.startswith("pid"):
-        i, Kc, Ti, Ts, Td, umin, umax, e = inputs
-    elif name.startswith("pi"):
-        i,Kc,Ti,Ts,umin,umax  = inputs
-    else: 
-        Kc,umin,umax = inputs
+    # if name.startswith("pid"):
+    #     i, Kc, Ti, Ts, Td, umin, umax, e = inputs
+    # elif name.startswith("pi"):
+    #     i,Kc,Ti,Ts,umin,umax  = inputs
+    # else: 
+    #     Kc,umin,umax = inputs
 
+    # ut = controller.update(zt)
     X = np.zeros([4,tf])
     U = np.zeros([2,tf])
     T = np.zeros([1,tf])
@@ -97,18 +98,19 @@ def closed_loop(f,g,h,t0,tf,x0,r,u0,p,Rvv,controller,inputs):
 
         yt = g(xt,p,Rvv) # output
         zt = h(yt) # measurement
+        dt = D[:,idx]
 
-        if name.startswith("pid"):
-            inputs = i, Kc, Ti, Ts, Td, umin, umax, e
-            ut, i, e = controller(ut, zt, r, inputs)
-        elif name.startswith("pi"):
-            inputs = i,Kc,Ti,Ts,umin,umax 
-            ut, i = controller(ut,zt,r,inputs)
-        else: 
-            inputs = Kc,umin,umax
-            ut = controller(ut,zt,r,inputs)
-
-        sol = solve_ivp(f, (t,t+1), xt, method='RK45',args = (ut,p))
+        # if name.startswith("pid"):
+        #     inputs = i, Kc, Ti, Ts, Td, umin, umax, e
+        #     ut, i, e = controller(ut, zt, r, inputs)
+        # elif name.startswith("pi"):
+        #     inputs = i,Kc,Ti,Ts,umin,umax 
+        #     ut, i = controller(ut,zt,r,inputs)
+        # else: 
+        #     inputs = Kc,umin,umax
+        #     ut = controller(ut,zt,r,inputs)
+        ut = controller.update(zt)
+        sol = solve_ivp(f, (t,t+1), xt, method='RK45',args = (ut,dt,p))
 
         xt = sol.y[:,-1]
         X[:,idx] = xt
@@ -118,4 +120,3 @@ def closed_loop(f,g,h,t0,tf,x0,r,u0,p,Rvv,controller,inputs):
         Z[:,idx] = zt
 
     return T,X,U,Y,Z
-

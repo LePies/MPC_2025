@@ -2,7 +2,7 @@ import numpy as np
 import parameters_tank as para
 import scipy as sp
 
-def f(t,xt,ut,p):
+def f(t,xt,ut,,dt,p):
 
     # Unpack parameters
     m = xt
@@ -13,7 +13,7 @@ def f(t,xt,ut,p):
     g = p[10]
     rho = p[11:]
 
-    # Inflows 
+    # Inflows
     qin = np.array([gamma[0]*F[0],gamma[1]*F[1],(1-gamma[1])*F[1],(1-gamma[0])*F[0]])
 
     # Outflows

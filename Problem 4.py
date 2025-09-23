@@ -4,6 +4,7 @@ import parameters_tank as para
 import matplotlib.pyplot as plt
 import compute_steady_state as css
 import simulations as sim
+import PIDcontrolor as pid
 
 t0 = 0
 tf = 20*90
@@ -13,8 +14,8 @@ m30 = 0
 m40 = 0
 F1 = 250
 F2 = 325
-F3 = 0
-F4 = 0 
+F3 = 100
+F4 = 10
 x0 = np.array([m10,m20,m30,m40])
 u = np.array([F1,F2])
 d = np.array([F3,F4])
@@ -26,26 +27,23 @@ xs = css.compute_steady_state(sys.f_modified, x0, u, d, p)
 print("Steady state (m):", xs)
 print("Steady state (h):", xs/(rho*np.array([A1,A2,A3,A4])))
 
-# Step response in open loop
-U = np.zeros((2, tf))
-U[0, :] = F1
-U[1, :] = F2
 
 # Define distrubances
+Kp = 4.0
+Ki = 0.1
+Kd = 0.5
+r = np.array([10.0, 10.0])
+u0 = np.array([F1, F2])
+Rvv = np.eye(4)*0.01
+umin = 1
+umax = 10000
+pid = pid.PIDController(Kp, Ki, Kd, r, 1, umin, umax)
+
 D = np.zeros((2, tf))
-D[0, :] = F1
-D[1, :] = F2    
+D[0, :] = np.random.normal(F3, 1, size=tf)
+D[1, :] = np.random.normal(F4, 1, size=tf)
 
-# Simulate deterministic open-loop response
-step1 = 200
-U[:, step1:] = np.array([F1 * 1.05, F2  * 1.05])[:, None]           
-D[:, step1:] = np.array([F1 * 0.95, F2  * 0.95])[:, None]
-step2 = 600
-U[:, step2:] = np.array([F1 * 1.10, F2  * 1.10])[:, None]
-D[:, step2:] = np.array([F1 * 0.90, F2  * 0.90])[:, None]
-step3 = 1000    
-
-T, X = sim.openloop(sys.f_modified, t0, tf, x0, U, D, p)
+T, X, U, Y, Z = sim.closed_loop(sys.f_modified, sys.g_sensor, sys.h_sensor, t0, tf, x0, r, u0, D, p, Rvv, pid)
 
 # Plotting example
 fig, axes = plt.subplots(2, 1, figsize=(8, 12), sharex=True)
@@ -59,6 +57,8 @@ axes[0].legend()
 axes[0].set_title('Step Response of Tanks')
 axes[1].step(T.ravel(), U[0, :], label='F1')
 axes[1].step(T.ravel(), U[1, :], label='F2')
+axes[1].step(T.ravel(), D[0, :], label='F3')
+axes[1].step(T.ravel(), D[1, :], label='F4')
 axes[1].set_xlabel('Time [s]')
 axes[1].set_ylabel('Flow [m³/s]')
 axes[1].legend()
