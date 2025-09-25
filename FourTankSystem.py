@@ -1,0 +1,119 @@
+import numpy as np
+from scipy.integrate import solve_ivp
+
+class FourTankSystem:
+    def __init__(
+        self,
+        R_s,
+        R_d,
+        p,
+        delta_t,
+        sigma_f3 = 20,
+        sigma_f4 = 20,
+        a_f3 = 1,
+        a_f4 = 1,
+        F3 = 100,
+        F4 = 120
+    ):
+        self.R_s = R_s
+        self.R_d = R_d
+        self.delta_t = delta_t
+        self.a = p[:4]
+        self.A = p[4:8]
+        self.rho = p[-1]
+        self.gamma = p[8:10]
+        self.g = p[10]
+        self.sigma_f3 = sigma_f3
+        self.sigma_f4 = sigma_f4
+        self.a_f3 = a_f3
+        self.a_f4 = a_f4
+        self.F3 = F3
+        self.F4 = F4
+
+    def StateEquation(self, t, states, u):
+        x = states[:4]
+        d = states[4:]
+        qin = np.array([self.gamma[0]*u[0],self.gamma[1]*u[1],(1-self.gamma[1])*u[1],(1-self.gamma[0])*u[0]])
+        h = x/(self.rho*self.A)
+        qout = self.a*np.sqrt(2*self.g*h)
+        x1dot = self.rho*(qin[0]+qout[2]-qout[0])
+        x2dot = self.rho*(qin[1]+qout[3]-qout[1])
+        x3dot = self.rho*(qin[2]-qout[2] + self.rho* d[0])
+        x4dot = self.rho*(qin[3]-qout[3] + d[1])
+
+        return np.array([x1dot, x2dot, x3dot, x4dot, 0, 0]) 
+
+    def StateSensor(self, x):
+        y = x/(self.rho*self.A)
+        noise = np.random.multivariate_normal(np.zeros(self.R_s.shape[0]),self.R_s)
+        return y + noise
+
+    def StateOutput(self, y):
+        S = np.array([[1, 0, 0, 0],
+                      [0, 1, 0, 0]])
+        z = S @ y
+        return z
+
+    def DisturbanceEquation(self, t, states, u):
+        x = states[:4]
+        d = states[4:]
+        a = np.array([self.a_f3, self.a_f4])
+        F_bar = np.array([self.F3, self.F4])
+        sigma = np.array([self.sigma_f3, self.sigma_f4])
+        dw = np.random.normal(0, self.delta_t,2)
+        ddot = a*(F_bar - d) + sigma*dw
+        return ddot
+
+    def DisturbanceSensor(self, d):
+        noise = np.random.multivariate_normal(np.zeros(self.R_d.shape[0]),self.R_d)
+        return d + noise
+
+    def DisturbanceOutput(self, z):
+        S = np.eye(2)
+        return S @ z
+
+    def FullEquation(self, t, states, u):
+        x = states[:4]
+        d = states[4:]
+        xdot = self.StateEquation(t, states, u)
+        ddot = self.DisturbanceEquation(t, states, u)
+        states_dot = np.concatenate([xdot[:4], ddot])
+        return states_dot
+    
+    def OpenLoop(self, tspan, states, u, d = []):
+        t0 = tspan[0]
+        tf = tspan[1]
+        t_array = np.arange(t0, tf, self.delta_t)
+
+        if states.shape[0] == 4:
+            f = self.StateEquation
+            is_deterministic = True
+            states = np.concatenate([states, d[:, 0]])
+            states_array = np.zeros([states.shape[0], t_array.shape[0]])
+            states_array[:, 0] = states
+
+        else:
+            is_deterministic = False
+            f = self.FullEquation
+            states_array = np.zeros([states.shape[0], t_array.shape[0]])
+            states_array[:, 0] = states
+
+        h_array = np.zeros([self.R_s.shape[0], t_array.shape[0]])
+        h_array[:, 0] = self.StateSensor(states_array[:4, 0])
+
+        for i in range(1, t_array.shape[0]):
+            ut = u[:, i-1]
+            sol = solve_ivp(f, (t_array[i-1], t_array[i]), states_array[:, i-1], method='RK45',args = (ut,))
+            state_new = sol.y[:,-1]
+            
+            if is_deterministic:
+                x_new = state_new
+                x_new[4:] = d[:, i]
+            else:
+                x_new = state_new
+            states_array[:, i] = x_new
+            h_array[:, i] = self.StateSensor(states_array[:4, i])
+
+        x_array = states_array[:4, :]
+        d_array = states_array[4:, :]
+        return t_array, x_array, u, d_array, h_array
