@@ -116,7 +116,7 @@ def discrete_system(x,u,A,B,C):
     y = C @ x
     return x_next, y
 
-def linearize_continous(xs):
+def LC(xs):
 
     a1,a2,a3,a4,A1,A2,A3,A4,gamma1,gamma2,g,rho = para.parameters()
     h1 = xs[0] / (rho * A1)
@@ -140,18 +140,23 @@ def linearize_continous(xs):
 
     return A,B,C,Cz
 
-def linearize_discrete(xs,Ts):
-    A, B, C, Cz = linearize_continous(xs)
+def C2D_ZOH(Ts,A,B,E=0):
+
+    if E == 0:
+        E = np.zeros_like(B)
 
     # Augment A and B for matrix exponential
     n = A.shape[0]
     m = B.shape[1]
-    M = np.zeros((n + m, n + m))
+    l = E.shape[1]
+    M = np.zeros((n + m + l, n + m + l))
     M[:n, :n] = A
-    M[:n, n:] = B
+    M[:n, n:n+m] = B
+    M[:n, n+m:] = E
     Md = sp.linalg.expm(M * Ts)
     Ad = Md[:n, :n]
-    Bd = Md[:n, n:]
-    
-    return Ad, Bd, C, Cz
+    Bd = Md[:n, n:n+m]
+    Ed = Md[:n, n+m:]
+
+    return Ad, Bd, Ed
 
