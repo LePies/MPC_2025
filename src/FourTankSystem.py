@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.integrate import solve_ivp
+from scipy.optimize import fsolve
 
 class FourTankSystem:
     def __init__(
@@ -39,7 +40,7 @@ class FourTankSystem:
         qout = self.a*np.sqrt(2*self.g*h)
         x1dot = self.rho*(qin[0]+qout[2]-qout[0])
         x2dot = self.rho*(qin[1]+qout[3]-qout[1])
-        x3dot = self.rho*(qin[2]-qout[2] + self.rho* d[0])
+        x3dot = self.rho*(qin[2]-qout[2] + self.rho * d[0])
         x4dot = self.rho*(qin[3]-qout[3] + d[1])
 
         return np.array([x1dot, x2dot, x3dot, x4dot, 0, 0]) 
@@ -80,33 +81,48 @@ class FourTankSystem:
         ddot = self.DisturbanceEquation(t, states, u)
         states_dot = np.concatenate([xdot[:4], ddot])
         return states_dot
-    
-    def OpenLoop(self, tspan, states, u, d = []):
+
+    def SetLoopStates(self, states, d):
+        if states.shape[0] == 4:
+            if d.shape[0] != 2:
+                raise ValueError("if states is 4x1 then d must be a 2x1 array")
+            if np.size(d.shape) == 1:
+                states = np.concatenate([states, d])
+            else:
+                states = np.concatenate([states, d[:, 0]])
+            return states, True
+        else:
+            return states, False
+
+    def GetSteadyState(self, states, u, d = np.array([])):
+
+        state_0, is_deterministic = self.SetLoopStates(states, d)
+        
+        def f_steady(states, u):
+            return self.StateEquation(0, states, u)
+        steady_state = fsolve(f_steady, state_0, args=(u))
+        return steady_state[:4]
+
+    def OpenLoop(self, tspan, states, u, d = np.array([])):
         t0 = tspan[0]
         tf = tspan[1]
         t_array = np.arange(t0, tf, self.delta_t)
 
-        if states.shape[0] == 4:
-            f = self.StateEquation
-            is_deterministic = True
-            states = np.concatenate([states, d[:, 0]])
-            states_array = np.zeros([states.shape[0], t_array.shape[0]])
-            states_array[:, 0] = states
+        states, is_deterministic = self.SetLoopStates(states, d)
 
-        else:
-            is_deterministic = False
-            f = self.FullEquation
-            states_array = np.zeros([states.shape[0], t_array.shape[0]])
-            states_array[:, 0] = states
+        states_array = np.zeros([states.shape[0], t_array.shape[0]])
+        states_array[:, 0] = states
 
         h_array = np.zeros([self.R_s.shape[0], t_array.shape[0]])
         h_array[:, 0] = self.StateSensor(states_array[:4, 0])
+
+        f = self.StateEquation if is_deterministic else self.FullEquation
 
         for i in range(1, t_array.shape[0]):
             ut = u[:, i-1]
             sol = solve_ivp(f, (t_array[i-1], t_array[i]), states_array[:, i-1], method='RK45',args = (ut,))
             state_new = sol.y[:,-1]
-            
+
             if is_deterministic:
                 x_new = state_new
                 x_new[4:] = d[:, i]
@@ -118,3 +134,40 @@ class FourTankSystem:
         x_array = states_array[:4, :]
         d_array = states_array[4:, :]
         return t_array, x_array, u, d_array, h_array
+
+    def ClosedLoop(self, tspan, states, controller, d = np.array([])):
+        t0 = tspan[0]
+        tf = tspan[1]
+        t_array = np.arange(t0, tf, self.delta_t)
+
+        states, is_deterministic = self.SetLoopStates(states, d)
+
+        states_array = np.zeros([states.shape[0], t_array.shape[0]])
+        states_array[:, 0] = states
+
+        h_array = np.zeros([self.R_s.shape[0], t_array.shape[0]])
+        h_array[:, 0] = self.StateSensor(states_array[:4, 0])
+
+        u_array = np.zeros([2, t_array.shape[0]])
+
+        f = self.StateEquation if is_deterministic else self.FullEquation
+
+        for i in range(1, t_array.shape[0]):
+            zt = self.StateOutput(h_array[:, i-1])
+            ut = controller.update(zt)
+            sol = solve_ivp(f, (t_array[i-1], t_array[i]), states_array[:, i-1], method='RK45',args = (ut,))
+            state_new = sol.y[:,-1]
+
+            if is_deterministic:
+                x_new = state_new
+                x_new[4:] = d[:, i]
+            else:
+                x_new = state_new
+            
+            states_array[:, i] = x_new
+            h_array[:, i] = self.StateSensor(states_array[:4, i])
+            u_array[:, i-1] = ut
+
+        x_array = states_array[:4, :]
+        d_array = states_array[4:, :]
+        return t_array, x_array, u_array, d_array, h_array

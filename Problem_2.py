@@ -1,6 +1,6 @@
 import numpy as np
-from FourTankSystem import FourTankSystem
-import parameters_tank as para
+from src.FourTankSystem import FourTankSystem
+import params.parameters_tank as para
 import matplotlib.pyplot as plt
 import compute_steady_state as css
 
@@ -31,29 +31,34 @@ d_array = np.zeros((2, tf))
 d_array[0, :] = F3
 d_array[1, :] = F4
 
-# Computing steady state of model 1
-xs = css.compute_steady_state(Model_Deterministic.StateEquation, x0, u)[:4]
+colors = ['dodgerblue', 'tomato', 'limegreen', 'orange']
+ls = ['-', '-', '-']
 
-t, x, _, _, h = Model_Deterministic.OpenLoop((t0, tf), xs, u_array, d_array)
+t, x, u, d, h = Model_Deterministic.OpenLoop((t0, tf), x0, u_array, d_array)
 
-fig, axes = plt.subplots(1, 2, figsize=(12, 8), sharex=True)
-axes[0].plot(t, h[0, :], label='$h_1$')
-axes[0].plot(t, h[1, :], label='$h_2$')
-axes[0].plot(t, h[2, :], label='$h_3$')
-axes[0].plot(t, h[3, :], label='$h_4$')
-axes[0].set_title('Heights of liquids in tanks')
-axes[0].legend()
+fig, axes = plt.subplots(3, 2, figsize=(12, 12), sharex=True)
 
-axes[1].plot(t, u_array[0, :], label='$F_1$ ($u_1$)')
-axes[1].plot(t, u_array[1, :], label='$F_2$ ($u_2$)')
-axes[1].plot(t, d_array[0, :], label='$F_3$ ($d_1$)')
-axes[1].plot(t, d_array[1, :], label='$F_4$ ($d_2$)')
-axes[1].set_title('Flow rate of tanks')
-axes[1].legend()
-fig.suptitle('Open loop simulation of modified four tank system Model 1 (deterministic)', fontsize=16)
+for i in range(4):
+    axes[0,0].plot(
+        t, h[i, :],
+        label=f'Height of Tank {i+1}',
+        color=colors[i],
+        ls=ls[0]
+    )
+    if i < 2:
+        axes[0,1].plot(
+            t, u[i, :],
+            label=f'Flow {i+1}',
+            color=colors[i], ls=ls[0]
+        )
+    else:   
+        axes[0,1].plot(
+            t, d[i-2, :],
+            label=f'Flow {i+1}',
+            color=colors[i],
+            ls=ls[0]
+        )
 
-plt.tight_layout()
-plt.show()
 
 Model_Stochastic = FourTankSystem(R_s, R_d, p, delta_t)
 noise = np.random.normal(0, np.sqrt(20), size=(2, tf))
@@ -62,25 +67,27 @@ noise = np.random.normal(0, np.sqrt(20), size=(2, tf))
 xs = css.compute_steady_state(Model_Stochastic.StateEquation, x0, u)
 t, x, _, d, h = Model_Stochastic.OpenLoop((t0, tf), xs, u_array, d_array + noise)
 
-fig, axes = plt.subplots(1, 2, figsize=(12, 8), sharex=True)
-
-axes[0].plot(t, h[0, :], label='$h_1$')
-axes[0].plot(t, h[1, :], label='$h_2$')
-axes[0].plot(t, h[2, :], label='$h_3$')
-axes[0].plot(t, h[3, :], label='$h_4$')
-axes[0].set_title('Heights of liquids in tanks')
-axes[0].legend()
-
-axes[1].plot(t, u_array[0, :], label='$F_1$ ($u_1$)')
-axes[1].plot(t, u_array[1, :], label='$F_2$ ($u_2$)')
-axes[1].plot(t, d[0, :], label='$F_3$ ($d_1$)')
-axes[1].plot(t, d[1, :], label='$F_4$ ($d_2$)')
-axes[1].set_title('Flow rate of tanks')
-axes[1].legend()
-fig.suptitle('Open loop simulation of modified four tank system Model 2 (stochastic disturbance)', fontsize=16)
-
-plt.tight_layout()
-plt.show()
+for i in range(4):
+    axes[1,0].plot(
+        t, h[i, :],
+        label=f'Height of Tank {i+1}', 
+        color=colors[i], 
+        ls=ls[1]
+    )
+    if i < 2:
+        axes[1,1].plot(
+            t, u[i, :],
+            label=f'Flow of Tank {i+1}',
+            color=colors[i],
+            ls=ls[1]
+        )
+    else:
+        axes[1,1].plot(
+            t, d[i-2, :],
+            label=f'Flow of Tank {i+1}',
+            color=colors[i],
+            ls=ls[1]
+        )
 
 # Extending state for model 3
 x_extended = np.concatenate([x0, d_array[:, 0]])
@@ -91,22 +98,60 @@ xs_extended = css.compute_steady_state(Model_Stochastic.StateEquation, x_extende
 # Computing openloop for model 3
 t, x, _, d, h = Model_Stochastic.OpenLoop((t0, tf), xs_extended, u_array)
 
-fig, axes = plt.subplots(1, 2, figsize=(12, 8), sharex=True)
-axes[0].plot(t, h[0, :], label='$h_1$')
-axes[0].plot(t, h[1, :], label='$h_2$')
-axes[0].plot(t, h[2, :], label='$h_3$')
-axes[0].plot(t, h[3, :], label='$h_4$')
-axes[0].set_title('Heights of liquids in tanks')
-axes[0].legend()
+for i in range(4):
+    axes[2,0].plot(
+        t, h[i, :],
+        label=f'Height of Tank {i+1}',
+        color=colors[i],
+        ls=ls[2]
+    )
+    if i < 2:
+        axes[2,1].plot(
+            t, u[i, :],
+            label=f'Flow {i+1}',
+            color=colors[i],
+            ls=ls[2]
+        )
+    else:
+        axes[2,1].plot(
+            t, d[i-2, :],
+            label=f'Flow {i+1}',
+            color=colors[i],
+            ls=ls[2]
+        )
 
-axes[1].plot(t, u_array[0, :], label='$F_1$ ($u_1$)')
-axes[1].plot(t, u_array[1, :], label='$F_2$ ($u_2$)')
-axes[1].plot(t, d[0, :], label='$F_3$ ($d_1$)')
-axes[1].plot(t, d[1, :], label='$F_4$ ($d_2$)')
-axes[1].set_title('Flow rate of tanks')
-axes[1].legend()
+axes[0,0].legend(loc='upper center', bbox_to_anchor=(0.5, 1.10),
+          ncol=2, fancybox=True, shadow=True)
+axes[0,1].legend(loc='upper center', bbox_to_anchor=(0.5, 1.10),
+          ncol=2, fancybox=True, shadow=True)
 
-fig.suptitle('Open loop simulation of modified four tank system Model 3 (SDE)', fontsize=16)
+axes[0,0].set_ylim(0, np.max(h)*1.1)
+axes[1,0].set_ylim(0, np.max(h)*1.1)
+axes[2,0].set_ylim(0, np.max(h)*1.1)
+axes[0,1].set_ylim(0, np.max(u)*1.1)
+axes[1,1].set_ylim(0, np.max(u)*1.1)
+axes[2,1].set_ylim(0, np.max(u)*1.1)
+
+axes[0,0].set_ylabel('DETERMINISTIC\nHeight [m]')
+axes[0,1].set_ylabel('Flow [m³/s]')
+axes[1,0].set_ylabel('PIECEWISE CONSTANT NOISE\nHeight [m]')
+axes[1,1].set_ylabel('Flow [m³/s]')
+axes[2,0].set_ylabel('CONTINUOUS NOISE\nHeight [m]')
+axes[2,1].set_ylabel('Flow [m³/s]')
+axes[0,0].set_xlabel('Time [s]')
+axes[0,1].set_xlabel('Time [s]')
+axes[1,0].set_xlabel('Time [s]')
+axes[1,1].set_xlabel('Time [s]')
+axes[2,0].set_xlabel('Time [s]')
+axes[2,1].set_xlabel('Time [s]')
+
+axes[0,0].grid(True, linestyle='--', alpha=0.5)
+axes[0,1].grid(True, linestyle='--', alpha=0.5)
+axes[1,0].grid(True, linestyle='--', alpha=0.5)
+axes[1,1].grid(True, linestyle='--', alpha=0.5)
+axes[2,0].grid(True, linestyle='--', alpha=0.5)
+axes[2,1].grid(True, linestyle='--', alpha=0.5)
 
 plt.tight_layout()
+plt.savefig('figures/Problem_2.png')
 plt.show()
