@@ -2,6 +2,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.optimize import fsolve
 
+
 class FourTankSystem:
     def __init__(
         self,
@@ -31,8 +32,20 @@ class FourTankSystem:
         self.F3 = F3
         self.F4 = F4
 
+    def CheckInputDimension(self, states, d):
+        if states.shape[0] == 4:
+            if d.shape[0] != 2:
+                raise ValueError("Wrong shape of d was given\nif states (x) is 4x1 then d must be a 2x1 array")
+            return
+        elif states.shape[0] == 6:
+            if d.shape[0] != 0:
+                raise ValueError("Wrong shape of d was given\nif states (x) is 6x1 then d must be a 0x1 array")
+            return
+        else:
+            raise ValueError("Wrong shape of states was given\nstates must be either a 4x1 array or a 6x1 array")
+
     def StateEquation(self, t, states, u):
-        
+
         x = states[:4]
         d = states[4:]
         qin = np.array([self.gamma[0]*u[0],self.gamma[1]*u[1],(1-self.gamma[1])*u[1],(1-self.gamma[0])*u[0]])
@@ -95,6 +108,7 @@ class FourTankSystem:
             return states, False
 
     def GetSteadyState(self, states, u, d = np.array([])):
+        self.CheckInputDimension(states, d)
 
         state_0, is_deterministic = self.SetLoopStates(states, d)
         
@@ -104,6 +118,10 @@ class FourTankSystem:
         return steady_state[:4]
 
     def OpenLoop(self, tspan, states, u, d = np.array([])):
+        if np.size(tspan) != 2:
+            raise ValueError("Wrong shape of tspan was given\ntspan must be a 2x1 array")
+        self.CheckInputDimension(states, d)
+
         t0 = tspan[0]
         tf = tspan[1]
         t_array = np.arange(t0, tf, self.delta_t)
@@ -136,6 +154,10 @@ class FourTankSystem:
         return t_array, x_array, u, d_array, h_array
 
     def ClosedLoop(self, tspan, states, controller, d = np.array([])):
+        if np.size(tspan) != 2:
+            raise ValueError("Wrong shape of tspan was given\ntspan must be a 2x1 array")
+        self.CheckInputDimension(states, d)
+
         t0 = tspan[0]
         tf = tspan[1]
         t_array = np.arange(t0, tf, self.delta_t)
@@ -156,14 +178,14 @@ class FourTankSystem:
             zt = self.StateOutput(h_array[:, i-1])
             ut = controller.update(zt)
             sol = solve_ivp(f, (t_array[i-1], t_array[i]), states_array[:, i-1], method='RK45',args = (ut,))
-            state_new = sol.y[:,-1]
+            state_new = sol.y[:, -1]
 
             if is_deterministic:
                 x_new = state_new
                 x_new[4:] = d[:, i]
             else:
                 x_new = state_new
-            
+
             states_array[:, i] = x_new
             h_array[:, i] = self.StateSensor(states_array[:4, i])
             u_array[:, i-1] = ut
