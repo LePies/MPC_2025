@@ -31,11 +31,11 @@ d_array[0, :] = F3
 d_array[1, :] = F4
 
 colors = ['dodgerblue', 'tomato', 'limegreen', 'orange']
-ls = ['-', '-', '-'] 
+ls = ['-', '-', '-']
 
 xs = Model_Deterministic.GetSteadyState(x0, u, d)
 
-t, x, u_out, d_out, h = Model_Deterministic.OpenLoop((t0, tf), x0, u_array, d_array)
+t, x, u_out, d_out, h = Model_Deterministic.OpenLoop((t0, tf), xs, u_array, d_array)
 
 fig, axes = plt.subplots(3, 2, figsize=(12, 12), sharex=True)
 
