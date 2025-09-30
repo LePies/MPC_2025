@@ -67,6 +67,3 @@ axes[1].legend()
 
 plt.show()
 
-
-
-
