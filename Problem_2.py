@@ -90,14 +90,19 @@ for i in range(4):
             ls=ls[1]
         )
 
+
+
 # Extending state for model 3
 x_extended = np.concatenate([x0, d_array[:, 0]])
 
-# Compute steady state for extended state of model 3 
-xs_extended = Model_Stochastic.GetSteadyState(x_extended, u)
+# Compute steady state for extended state of model 3
+xs = Model_Stochastic.GetSteadyState(x_extended, u)
+
+# Extending state for model 3
+xs_extended = np.concatenate([xs, d_array[:, 0]])
 
 # Computing openloop for model 3
-t, x, u_out, d_out, h = Model_Stochastic.OpenLoop((t0, tf), xs_extended, u_array, d_array)
+t, x, u_out, d_out, h = Model_Stochastic.OpenLoop((t0, tf), xs_extended, u_array)
 
 for i in range(4):
     axes[2, 0].plot(
@@ -139,8 +144,8 @@ axes[1,0].set_ylabel('Model 2 (Piecewise constant noise)\nHeight [m]')
 axes[1,1].set_ylabel('Flow [m³/s]')
 axes[2,0].set_ylabel('Model 3 (SDE)\nHeight [m]')
 axes[2,1].set_ylabel('Flow [m³/s]')
-axes[2,0].set_xlabel('Time [m]')
-axes[2,1].set_xlabel('Time [m]')
+axes[2,0].set_xlabel('Time [min]')
+axes[2,1].set_xlabel('Time [min]')
 
 axes[0,0].grid(True, linestyle='--', alpha=0.5)
 axes[0,1].grid(True, linestyle='--', alpha=0.5)
