@@ -48,13 +48,13 @@ for i in range(4):
     )
     if i < 2:
         axes[0,1].plot(
-            t, u_out[i, :],
+            t/60, u_out[i, :],
             label=f'Flow {i+1} ($u_{i+1}$)',
             color=colors[i], ls=ls[0]
         )
     else:   
         axes[0,1].plot(
-            t, d_out[i-2, :],
+            t/60, d_out[i-2, :],
             label=f'Flow {i+1} ($d_{i+1}$)',
             color=colors[i],
             ls=ls[0]
@@ -77,14 +77,14 @@ for i in range(4):
     )
     if i < 2:
         axes[1,1].plot(
-            t, u_out[i, :],
+            t/60, u_out[i, :],
             label=f'Flow of Tank {i+1} ($u_{i+1}$)',
             color=colors[i],
             ls=ls[1]
         )
     else:
         axes[1,1].plot(
-            t, d_out[i-2, :],
+            t/60, d_out[i-2, :],
             label=f'Flow of Tank {i+1} ($d_{i+1}$)',
             color=colors[i],
             ls=ls[1]
@@ -107,15 +107,15 @@ for i in range(4):
         ls=ls[2]
     )
     if i < 2:
-        axes[2,1].plot(
-            t, u_out[i, :],
+        axes[2, 1].plot(
+            t/60, u_out[i, :],
             label=f'Flow {i+1} ($u_{i+1}$)',
             color=colors[i],
             ls=ls[2]
         )
     else:
-        axes[2,1].plot(
-            t, d_out[i-2, :],
+        axes[2, 1].plot(
+            t/60, d_out[i-2, :],
             label=f'Flow {i+1} ($d_{i+1}$)',
             color=colors[i],
             ls=ls[2]
@@ -139,8 +139,8 @@ axes[1,0].set_ylabel('Model 2 (Piecewise constant noise)\nHeight [m]')
 axes[1,1].set_ylabel('Flow [m³/s]')
 axes[2,0].set_ylabel('Model 3 (SDE)\nHeight [m]')
 axes[2,1].set_ylabel('Flow [m³/s]')
-axes[2,0].set_xlabel('Time [s]')
-axes[2,1].set_xlabel('Time [s]')
+axes[2,0].set_xlabel('Time [m]')
+axes[2,1].set_xlabel('Time [m]')
 
 axes[0,0].grid(True, linestyle='--', alpha=0.5)
 axes[0,1].grid(True, linestyle='--', alpha=0.5)
