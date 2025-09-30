@@ -39,20 +39,20 @@ fig, axes = plt.subplots(3, 2, figsize=(12, 12), sharex=True)
 
 for i in range(4):
     axes[0,0].plot(
-        t, h[i, :],
+        t/60, h[i, :],
         label=f'Height of Tank {i+1}',
         color=colors[i],
         ls=ls[0]
     )
     if i < 2:
         axes[0,1].plot(
-            t, u[i, :],
+            t/60, u[i, :],
             label=f'Flow {i+1}',
             color=colors[i], ls=ls[0]
         )
     else:   
         axes[0,1].plot(
-            t, d[i-2, :],
+            t/60, d[i-2, :],
             label=f'Flow {i+1}',
             color=colors[i],
             ls=ls[0]
@@ -66,21 +66,21 @@ t, x, u, d, h = Model_Stochastic.OpenLoop((t0, tf), x0, u_array, d_array + noise
 
 for i in range(4):
     axes[1,0].plot(
-        t, h[i, :],
+        t/60, h[i, :],
         label=f'Height of Tank {i+1}', 
         color=colors[i], 
         ls=ls[1]
     )
     if i < 2:
-        axes[1,1].plot(
-            t, u[i, :],
+        axes[1, 1].plot(
+            t/60, u[i, :],
             label=f'Flow of Tank {i+1}',
             color=colors[i],
             ls=ls[1]
         )
     else:
-        axes[1,1].plot(
-            t, d[i-2, :],
+        axes[1, 1].plot(
+            t/60, d[i-2, :],
             label=f'Flow of Tank {i+1}',
             color=colors[i],
             ls=ls[1]
@@ -91,38 +91,38 @@ state0 = np.concatenate([x0, d_array[:, 0]])
 t, x, u, d, h = Model_Stochastic.OpenLoop((t0, tf), state0, u_array)
 
 for i in range(4):
-    axes[2,0].plot(
-        t, h[i, :],
+    axes[2, 0].plot(
+        t/60, h[i, :],
         label=f'Height of Tank {i+1}',
         color=colors[i],
         ls=ls[2]
     )
     if i < 2:
-        axes[2,1].plot(
-            t, u[i, :],
+        axes[2, 1].plot(
+            t/60, u[i, :],
             label=f'Flow {i+1}',
             color=colors[i],
             ls=ls[2]
         )
     else:
-        axes[2,1].plot(
-            t, d[i-2, :],
+        axes[2, 1].plot(
+            t/60, d[i-2, :],
             label=f'Flow {i+1}',
             color=colors[i],
             ls=ls[2]
         )
 
-axes[0,0].legend(loc='upper center', bbox_to_anchor=(0.5, 1.10),
+axes[0, 0].legend(loc='upper center', bbox_to_anchor=(0.5, 1.10),
           ncol=2, fancybox=True, shadow=True)
-axes[0,1].legend(loc='upper center', bbox_to_anchor=(0.5, 1.10),
+axes[0, 1].legend(loc='upper center', bbox_to_anchor=(0.5, 1.10),
           ncol=2, fancybox=True, shadow=True)
 
-axes[0,0].set_ylim(0, np.max(h)*1.1)
-axes[1,0].set_ylim(0, np.max(h)*1.1)
-axes[2,0].set_ylim(0, np.max(h)*1.1)
-axes[0,1].set_ylim(0, np.max(u)*1.1)
-axes[1,1].set_ylim(0, np.max(u)*1.1)
-axes[2,1].set_ylim(0, np.max(u)*1.1)
+axes[0, 0].set_ylim(0, np.max(h)*1.1)
+axes[1, 0].set_ylim(0, np.max(h)*1.1)
+axes[2, 0].set_ylim(0, np.max(h)*1.1)
+axes[0, 1].set_ylim(0, np.max(u)*1.1)
+axes[1, 1].set_ylim(0, np.max(u)*1.1)
+axes[2, 1].set_ylim(0, np.max(u)*1.1)
 
 axes[0,0].set_ylabel('DETERMINISTIC\nHeight [m]')
 axes[0,1].set_ylabel('Flow [m³/s]')
@@ -130,12 +130,8 @@ axes[1,0].set_ylabel('PIECEWISE CONSTANT NOISE\nHeight [m]')
 axes[1,1].set_ylabel('Flow [m³/s]')
 axes[2,0].set_ylabel('CONTINUOUS NOISE\nHeight [m]')
 axes[2,1].set_ylabel('Flow [m³/s]')
-axes[0,0].set_xlabel('Time [s]')
-axes[0,1].set_xlabel('Time [s]')
-axes[1,0].set_xlabel('Time [s]')
-axes[1,1].set_xlabel('Time [s]')
-axes[2,0].set_xlabel('Time [s]')
-axes[2,1].set_xlabel('Time [s]')
+axes[2,0].set_xlabel('Time [m]')
+axes[2,1].set_xlabel('Time [m]')
 
 axes[0,0].grid(True, linestyle='--', alpha=0.5)
 axes[0,1].grid(True, linestyle='--', alpha=0.5)
