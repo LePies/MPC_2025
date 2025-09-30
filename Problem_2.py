@@ -1,6 +1,6 @@
 import numpy as np
-from FourTankSystem import FourTankSystem
-import parameters_tank as para
+from src.FourTankSystem import FourTankSystem
+import params.parameters_tank as para
 import matplotlib.pyplot as plt
 
 t0 = 0
@@ -30,68 +30,120 @@ d_array = np.zeros((2, tf))
 d_array[0, :] = F3
 d_array[1, :] = F4
 
+colors = ['dodgerblue', 'tomato', 'limegreen', 'orange']
+ls = ['-', '-', '-']
+
 t, x, u, d, h = Model_Deterministic.OpenLoop((t0, tf), x0, u_array, d_array)
 
-fig, axes = plt.subplots(1, 2, figsize=(12, 8), sharex=True)
-axes[0].plot(t, h[0, :], label='H1')
-axes[0].plot(t, h[1, :], label='H2')
-axes[0].plot(t, h[2, :], label='H3')
-axes[0].plot(t, h[3, :], label='H4')
-axes[0].set_title('Height of Tanks (Deterministic)')
-axes[0].legend()
+fig, axes = plt.subplots(3, 2, figsize=(12, 12), sharex=True)
 
-axes[1].plot(t, u[0, :], label='F1')
-axes[1].plot(t, u[1, :], label='F2')
-axes[1].plot(t, d[0, :], label='F3')
-axes[1].plot(t, d[1, :], label='F4')
-axes[1].set_title('Flow of Tanks (Deterministic)')
-axes[1].legend()
+for i in range(4):
+    axes[0,0].plot(
+        t, h[i, :],
+        label=f'Height of Tank {i+1}',
+        color=colors[i],
+        ls=ls[0]
+    )
+    if i < 2:
+        axes[0,1].plot(
+            t, u[i, :],
+            label=f'Flow {i+1}',
+            color=colors[i], ls=ls[0]
+        )
+    else:   
+        axes[0,1].plot(
+            t, d[i-2, :],
+            label=f'Flow {i+1}',
+            color=colors[i],
+            ls=ls[0]
+        )
 
-plt.tight_layout()
-plt.show()
 
 Model_Stochastic = FourTankSystem(R_s, R_d, p, delta_t)
 
 noise = np.random.normal(0, np.sqrt(20), size=(2, tf))
 t, x, u, d, h = Model_Stochastic.OpenLoop((t0, tf), x0, u_array, d_array + noise)
 
-fig, axes = plt.subplots(1, 2, figsize=(12, 8), sharex=True)
-
-axes[0].plot(t, h[0, :], label='H1')
-axes[0].plot(t, h[1, :], label='H2')
-axes[0].plot(t, h[2, :], label='H3')
-axes[0].plot(t, h[3, :], label='H4')
-axes[0].set_title('Height of Tanks (Stochastic)')
-axes[0].legend()
-
-axes[1].plot(t, u[0, :], label='F1')
-axes[1].plot(t, u[1, :], label='F2')
-axes[1].plot(t, d[0, :], label='F3')
-axes[1].plot(t, d[1, :], label='F4')
-axes[1].set_title('Flow of Tanks (Stochastic)')
-axes[1].legend()
-
-plt.tight_layout()
-plt.show()
+for i in range(4):
+    axes[1,0].plot(
+        t, h[i, :],
+        label=f'Height of Tank {i+1}', 
+        color=colors[i], 
+        ls=ls[1]
+    )
+    if i < 2:
+        axes[1,1].plot(
+            t, u[i, :],
+            label=f'Flow of Tank {i+1}',
+            color=colors[i],
+            ls=ls[1]
+        )
+    else:
+        axes[1,1].plot(
+            t, d[i-2, :],
+            label=f'Flow of Tank {i+1}',
+            color=colors[i],
+            ls=ls[1]
+        )
 
 state0 = np.concatenate([x0, d_array[:, 0]])
 
 t, x, u, d, h = Model_Stochastic.OpenLoop((t0, tf), state0, u_array)
 
-fig, axes = plt.subplots(1, 2, figsize=(12, 8), sharex=True)
-axes[0].plot(t, h[0, :], label='H1')
-axes[0].plot(t, h[1, :], label='H2')
-axes[0].plot(t, h[2, :], label='H3')
-axes[0].plot(t, h[3, :], label='H4')
-axes[0].set_title('Height of Tanks (Stochastic)')
-axes[0].legend()
+for i in range(4):
+    axes[2,0].plot(
+        t, h[i, :],
+        label=f'Height of Tank {i+1}',
+        color=colors[i],
+        ls=ls[2]
+    )
+    if i < 2:
+        axes[2,1].plot(
+            t, u[i, :],
+            label=f'Flow {i+1}',
+            color=colors[i],
+            ls=ls[2]
+        )
+    else:
+        axes[2,1].plot(
+            t, d[i-2, :],
+            label=f'Flow {i+1}',
+            color=colors[i],
+            ls=ls[2]
+        )
 
-axes[1].plot(t, u[0, :], label='F1')
-axes[1].plot(t, u[1, :], label='F2')
-axes[1].plot(t, d[0, :], label='F3')
-axes[1].plot(t, d[1, :], label='F4')
-axes[1].set_title('Flow of Tanks (Stochastic)')
-axes[1].legend()
+axes[0,0].legend(loc='upper center', bbox_to_anchor=(0.5, 1.10),
+          ncol=2, fancybox=True, shadow=True)
+axes[0,1].legend(loc='upper center', bbox_to_anchor=(0.5, 1.10),
+          ncol=2, fancybox=True, shadow=True)
+
+axes[0,0].set_ylim(0, np.max(h)*1.1)
+axes[1,0].set_ylim(0, np.max(h)*1.1)
+axes[2,0].set_ylim(0, np.max(h)*1.1)
+axes[0,1].set_ylim(0, np.max(u)*1.1)
+axes[1,1].set_ylim(0, np.max(u)*1.1)
+axes[2,1].set_ylim(0, np.max(u)*1.1)
+
+axes[0,0].set_ylabel('DETERMINISTIC\nHeight [m]')
+axes[0,1].set_ylabel('Flow [m³/s]')
+axes[1,0].set_ylabel('PIECEWISE CONSTANT NOISE\nHeight [m]')
+axes[1,1].set_ylabel('Flow [m³/s]')
+axes[2,0].set_ylabel('CONTINUOUS NOISE\nHeight [m]')
+axes[2,1].set_ylabel('Flow [m³/s]')
+axes[0,0].set_xlabel('Time [s]')
+axes[0,1].set_xlabel('Time [s]')
+axes[1,0].set_xlabel('Time [s]')
+axes[1,1].set_xlabel('Time [s]')
+axes[2,0].set_xlabel('Time [s]')
+axes[2,1].set_xlabel('Time [s]')
+
+axes[0,0].grid(True, linestyle='--', alpha=0.5)
+axes[0,1].grid(True, linestyle='--', alpha=0.5)
+axes[1,0].grid(True, linestyle='--', alpha=0.5)
+axes[1,1].grid(True, linestyle='--', alpha=0.5)
+axes[2,0].grid(True, linestyle='--', alpha=0.5)
+axes[2,1].grid(True, linestyle='--', alpha=0.5)
 
 plt.tight_layout()
+plt.savefig('figures/Problem_2.png')
 plt.show()

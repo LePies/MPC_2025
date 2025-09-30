@@ -1,10 +1,10 @@
-import system as sys
+import trashbin.system as sys
 import numpy as np
-import parameters_tank as para 
+import params.parameters_tank as para
 import matplotlib.pyplot as plt
-import compute_steady_state as css
-import simulations as sim
-import PIDcontrolor as pid
+import trashbin.compute_steady_state as css
+import trashbin.simulations as sim
+import src.PIDcontrolor as pid
 
 t0 = 0
 tf = 20*90
