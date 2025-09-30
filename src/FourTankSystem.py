@@ -111,10 +111,14 @@ class FourTankSystem:
         self.CheckInputDimension(states, d)
 
         state_0, is_deterministic = self.SetLoopStates(states, d)
-        
-        def f_steady(states, u):
-            return self.StateEquation(0, states, u)
-        steady_state = fsolve(f_steady, state_0, args=(u))
+        if callable(u):
+            def f_steady(states):
+                ut = u(states)
+                return self.StateEquation(0, states, ut)
+        else:
+            def f_steady(states):   
+                return self.StateEquation(0, states, u)
+        steady_state = fsolve(f_steady, state_0)
         return steady_state[:4]
 
     def OpenLoop(self, tspan, states, u, d = np.array([])):

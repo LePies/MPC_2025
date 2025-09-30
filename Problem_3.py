@@ -1,4 +1,5 @@
 
+from traceback import print_tb
 import numpy as np
 import params.parameters_tank as para
 import matplotlib.pyplot as plt
@@ -24,9 +25,6 @@ a1, a2, a3, a4, A1, A2, A3, A4, gamma1, gamma2, g, rho = p
 delta_t = 1
 
 # Define distrubances
-Kp = 1
-Ki = 1
-Kd = 5
 goal = np.array([10.0, 10.0])  # Height of Tank 1 and 2
 u0 = np.array([F1, F2])
 Rvv = np.eye(4)*0.01
@@ -43,7 +41,8 @@ state_0 = np.concatenate([x0, d])
 
 
 setpoint = goal
-controller_p = pid.PIDController(Kp, 0, 0, setpoint, delta_t, umin, umax)
+
+controller_p = pid.PIDController(1, 0, 0, setpoint, delta_t, umin, umax)
 
 t, x, u, d, h = Model.ClosedLoop((t0, tf), state_0, controller_p)
 
@@ -60,13 +59,13 @@ for i in range(4):
 
 axes[0, 0].set_ylim(0, np.max(h)*1.1)
 axes[0, 1].set_ylim(0, np.max(u)*1.1)
-axes[0, 0].set_ylabel('P Controller\nHeight [m]')
+axes[0, 0].set_ylabel('K_p = 1\nHeight [m]')
 axes[0, 1].set_ylabel('Flow [m³/s]')
 axes[0, 0].grid(True, linestyle='--', alpha=0.5)
 axes[0, 1].grid(True, linestyle='--', alpha=0.5)
 
 
-controller_pi = pid.PIDController(Kp, Ki, 0, setpoint, delta_t, umin, umax)
+controller_pi = pid.PIDController(5, 0, 0, setpoint, delta_t, umin, umax)
 
 t, x, u, d, h = Model.ClosedLoop((t0, tf), state_0, controller_pi)
 
@@ -84,7 +83,7 @@ axes[1, 1].set_ylabel('Flow [m³/s]')
 axes[1, 0].grid(True, linestyle='--', alpha=0.5)
 axes[1, 1].grid(True, linestyle='--', alpha=0.5)
 
-controller_pid = pid.PIDController(Kp, Ki, Kd, setpoint, delta_t, umin, umax)
+controller_pid = pid.PIDController(5, 0, 0, setpoint, delta_t, umin, umax)
 
 t, x, u, d, h = Model.ClosedLoop((t0, tf), state_0, controller_pid)
 
