@@ -196,4 +196,63 @@ class FourTankSystem:
 
         x_array = states_array[:4, :]
         d_array = states_array[4:, :]
-        return t_array, x_array, u_array, d_array, h_array
+        return t_array, x_array, u_array, d_array, h_array 
+    
+    def LinearizeDeterminitistic(self,xs):
+
+        h1 = xs[0] / (self.rho * self.A[0])
+        h2 = xs[1] / (self.rho * self.A[1])
+        h3 = xs[2] / (self.rho * self.A[2])
+        h4 = xs[3] / (self.rho * self.A[3])
+
+        A_vals = np.array([self.A[0],self.A[1],self.A[2],self.A[3]])
+        a_vals = np.array([self.a[0],self.a[1],self.a[2],self.a[3]])
+        h_vals = np.array([h1,h2,h3,h4])
+
+        T = A_vals*np.sqrt(2*self.g*h_vals)/(a_vals*self.g)
+
+        A=np.array([[-1/T[0], 0, 1/T[2], 0],
+                    [0,-1/T[1], 0, 1/T[3]],
+                    [0, 0,-1/T[2], 0],
+                    [0, 0, 0,-1/T[3]]])
+        B=np.array([[self.rho*self.gamma[0], 0],[0, self.rho*self.gamma[1]],[0, self.rho*(1-self.gamma[1])],[self.rho*(1-self.gamma[0]), 0]])
+        C=np.diag(1./(self.rho*A_vals))
+        Cz=C[:2,:]
+
+        return A,B,C,Cz
+
+    def LinearizeContinousTime(self,xs,d):
+
+        xs, is_deterministic = self.SetLoopStates(xs,d)
+
+        Ass, Bs, C, Cz = self.LinearizeDeterminitistic(xs)
+
+        if is_deterministic:
+            return Ass,Bs,C,Cz
+        
+        Ads = np.array([[0,0],
+                        [0,0],
+                        [self.rho,0],
+                        [0,self.rho]])
+        Asd = np.zeros((4, 2))
+        Add = np.array([[-self.a_f3], 
+                        [-self.a_f4]])
+        Ac = np.block([
+            [Ass, Ads],
+            [Asd, Add]
+        ])
+
+        Bd = np.zeros((2,2))
+        Bc = np.block([[Bs],[Bd]])
+
+        Ec = np.array([[0,0],
+                      [0,0],
+                      [self.rho,0],
+                      [0,self.rho],
+                      [-self.a_f3,0],
+                      [0,-self.a_f4]])
+        
+        return Ac,Bc,Ec,C,Cz
+    
+
+

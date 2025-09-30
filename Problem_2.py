@@ -31,7 +31,7 @@ d_array[0, :] = F3
 d_array[1, :] = F4
 
 colors = ['dodgerblue', 'tomato', 'limegreen', 'orange']
-ls = ['-', '-', '-']
+ls = ['-', '-', '-'] 
 
 xs = Model_Deterministic.GetSteadyState(x0, u, d)
 
