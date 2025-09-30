@@ -31,6 +31,7 @@ class FourTankSystem:
         self.F4 = F4
 
     def StateEquation(self, t, states, u):
+        
         x = states[:4]
         d = states[4:]
         qin = np.array([self.gamma[0]*u[0],self.gamma[1]*u[1],(1-self.gamma[1])*u[1],(1-self.gamma[0])*u[0]])
