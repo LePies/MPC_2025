@@ -85,7 +85,7 @@ class FourTankSystem:
     def SetLoopStates(self, states, d):
         if states.shape[0] == 4:
             if d.shape[0] != 2:
-                raise ValueError("if states is 4x1 then d must be a 2x1 array")
+                raise ValueError("Wrong shape of d was given\nif states (x) is 4x1 then d must be a 2x1 array")
             if np.size(d.shape) == 1:
                 states = np.concatenate([states, d])
             else:
