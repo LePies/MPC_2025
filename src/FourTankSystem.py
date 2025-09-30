@@ -239,7 +239,7 @@ class FourTankSystem:
         ])
 
         Bd = np.zeros((2,2))
-        Bc = np.block([Bs,Bd])
+        Bc = np.block([[Bs],[Bd]])
 
         Ec = np.array([[0,0],
                       [0,0],
