@@ -41,7 +41,7 @@ fig, axes = plt.subplots(3, 2, figsize=(12, 12), sharex=True)
 
 for i in range(4):
     axes[0,0].plot(
-        t, h[i, :],
+        t/60, h[i, :],
         label=f'Height of Tank {i+1}',
         color=colors[i],
         ls=ls[0]
@@ -70,7 +70,7 @@ t, x, u_out, d_out, h = Model_Stochastic.OpenLoop((t0, tf), xs, u_array, d_array
 
 for i in range(4):
     axes[1,0].plot(
-        t, h[i, :],
+        t/60, h[i, :],
         label=f'Height of Tank {i+1}', 
         color=colors[i], 
         ls=ls[1]
@@ -100,8 +100,8 @@ xs_extended = Model_Stochastic.GetSteadyState(x_extended, u)
 t, x, u_out, d_out, h = Model_Stochastic.OpenLoop((t0, tf), xs_extended, u_array, d_array)
 
 for i in range(4):
-    axes[2,0].plot(
-        t, h[i, :],
+    axes[2, 0].plot(
+        t/60, h[i, :],
         label=f'Height of Tank {i+1}',
         color=colors[i],
         ls=ls[2]
@@ -121,17 +121,17 @@ for i in range(4):
             ls=ls[2]
         )
 
-axes[0,0].legend(loc='upper center', bbox_to_anchor=(0.5, 1.10),
+axes[0, 0].legend(loc='upper center', bbox_to_anchor=(0.5, 1.10),
           ncol=2, fancybox=True, shadow=True)
-axes[0,1].legend(loc='upper center', bbox_to_anchor=(0.5, 1.10),
+axes[0, 1].legend(loc='upper center', bbox_to_anchor=(0.5, 1.10),
           ncol=2, fancybox=True, shadow=True)
 
-axes[0,0].set_ylim(0, np.max(h)*1.1)
-axes[1,0].set_ylim(0, np.max(h)*1.1)
-axes[2,0].set_ylim(0, np.max(h)*1.1)
-axes[0,1].set_ylim(0, np.max(u)*1.1)
-axes[1,1].set_ylim(0, np.max(u)*1.1)
-axes[2,1].set_ylim(0, np.max(u)*1.1)
+axes[0, 0].set_ylim(0, np.max(h)*1.1)
+axes[1, 0].set_ylim(0, np.max(h)*1.1)
+axes[2, 0].set_ylim(0, np.max(h)*1.1)
+axes[0, 1].set_ylim(0, np.max(u)*1.1)
+axes[1, 1].set_ylim(0, np.max(u)*1.1)
+axes[2, 1].set_ylim(0, np.max(u)*1.1)
 
 axes[0,0].set_ylabel('Model 1 (Deterministic)\nHeight [m]')
 axes[0,1].set_ylabel('Flow [m³/s]')
