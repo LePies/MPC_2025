@@ -35,7 +35,7 @@ ls = ['-', '-', '-']
 
 xs = Model_Deterministic.GetSteadyState(x0, u)
 
-t, x, _, d, h = Model_Deterministic.OpenLoop((t0, tf), x0, u_array, d_array)
+t, x, u_out, d_out, h = Model_Deterministic.OpenLoop((t0, tf), x0, u_array, d_array)
 
 fig, axes = plt.subplots(3, 2, figsize=(12, 12), sharex=True)
 
@@ -48,13 +48,13 @@ for i in range(4):
     )
     if i < 2:
         axes[0,1].plot(
-            t, u_array[i, :],
+            t, u_out[i, :],
             label=f'Flow {i+1}',
             color=colors[i], ls=ls[0]
         )
     else:   
         axes[0,1].plot(
-            t/60, d[i-2, :],
+            t, d[i-2, :],
             label=f'Flow {i+1}',
             color=colors[i],
             ls=ls[0]
@@ -63,10 +63,10 @@ for i in range(4):
 
 Model_Stochastic = FourTankSystem(R_s, R_d, p, delta_t)
 noise = np.random.normal(0, np.sqrt(20), size=(2, tf))
-xs = Model_Stochastic.GetSteadyState(x0, u)
+xs = Model_Stochastic.GetSteadyState(x0, u, d)
 
-# Computing steady state of model 2
-t, x, _, d, h = Model_Stochastic.OpenLoop((t0, tf), xs, u_array, d_array + noise)
+# Computing steady state of model  2
+t, x, u_out, d_out, h = Model_Stochastic.OpenLoop((t0, tf), xs, u_array, d_array + noise)
 
 for i in range(4):
     axes[1,0].plot(
@@ -77,14 +77,14 @@ for i in range(4):
     )
     if i < 2:
         axes[1,1].plot(
-            t, u_array[i, :],
+            t, u_out[i, :],
             label=f'Flow of Tank {i+1}',
             color=colors[i],
             ls=ls[1]
         )
     else:
-        axes[1, 1].plot(
-            t/60, d[i-2, :],
+        axes[1,1].plot(
+            t, d[i-2, :],
             label=f'Flow of Tank {i+1}',
             color=colors[i],
             ls=ls[1]
@@ -97,7 +97,7 @@ x_extended = np.concatenate([x0, d_array[:, 0]])
 xs_extended = Model_Stochastic.GetSteadyState(x_extended, u, d)
 
 # Computing openloop for model 3
-t, x, _, d, h = Model_Stochastic.OpenLoop((t0, tf), xs_extended, u_array)
+t, x, u_out, d_out, h = Model_Stochastic.OpenLoop((t0, tf), xs_extended, u_array, d_array)
 
 for i in range(4):
     axes[2, 0].plot(
@@ -108,14 +108,14 @@ for i in range(4):
     )
     if i < 2:
         axes[2,1].plot(
-            t, u_array[i, :],
+            t, u_out[i, :],
             label=f'Flow {i+1}',
             color=colors[i],
             ls=ls[2]
         )
     else:
-        axes[2, 1].plot(
-            t/60, d[i-2, :],
+        axes[2,1].plot(
+            t, d[i-2, :],
             label=f'Flow {i+1}',
             color=colors[i],
             ls=ls[2]
