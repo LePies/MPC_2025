@@ -90,14 +90,19 @@ for i in range(4):
             ls=ls[1]
         )
 
+
+
 # Extending state for model 3
 x_extended = np.concatenate([x0, d_array[:, 0]])
 
-# Compute steady state for extended state of model 3 
-xs_extended = Model_Stochastic.GetSteadyState(x_extended, u)
+# Compute steady state for extended state of model 3
+xs = Model_Stochastic.GetSteadyState(x_extended, u)
+
+# Extending state for model 3
+xs_extended = np.concatenate([xs, d_array[:, 0]])
 
 # Computing openloop for model 3
-t, x, u_out, d_out, h = Model_Stochastic.OpenLoop((t0, tf), xs_extended, u_array, d_array)
+t, x, u_out, d_out, h = Model_Stochastic.OpenLoop((t0, tf), xs_extended, u_array)
 
 for i in range(4):
     axes[2, 0].plot(
