@@ -3,6 +3,8 @@ from src.FourTankSystem import FourTankSystem
 import params.parameters_tank as para
 import matplotlib.pyplot as plt
 from numpy.linalg import eig, inv, solve
+import control as ctrl
+import sympy as sp
 
 t0 = 0
 tf = 20*60 
@@ -26,7 +28,7 @@ delta_t = 1
 # Linearize continous time
 Model_Deterministic = FourTankSystem(R_s*0, R_d*0, p, delta_t)
 xs = Model_Deterministic.GetSteadyState(x0, u, d)
-Ac,Bc,C,Cz = Model_Deterministic.LinearizeContinousTime(xs,d)
+Ac,Bc,Ec,C,Cz = Model_Deterministic.LinearizeContinousTime(xs,d)
 print(Ac)
 print(Bc)
 print(C)
@@ -37,12 +39,14 @@ M = np.block([
             [Cz, np.zeros((2,2))]
         ])
 N = np.block([[np.identity(Ac.shape[0]),np.zeros((4,2))],
-             [np.zeros((2,2)),np.zeros((2,2))]])
+             [np.zeros((2,4)),np.zeros((2,2))]])
 
-zeros = eig(np.array([M,N]))[0]
+zeros = eig(np.array([M,N]))[0][0]
 poles = eig(Ac)[0]
 print("Poles:",poles,"\nSystem stable:",np.all(poles<0))
 print("zeros:",zeros,"\nController stable:",np.all(zeros<0))
-G_transfer = lambda s: C @ np.linalg.inv(s*np.eye(Ac.shape[0]) - Ac) @ Bc
+
+
+
 
 
