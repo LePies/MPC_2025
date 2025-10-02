@@ -34,14 +34,12 @@ print(Cz)
 
 M = np.block([
             [Ac, Bc],
-            [C, np.zeros((4,2))]
+            [Cz, np.zeros((2,2))]
         ])
 N = np.block([[np.identity(Ac.shape[0]),np.zeros((4,2))],
-             [np.zeros((4,4)),np.zeros((4,2))]])
+             [np.zeros((2,2)),np.zeros((2,2))]])
 
-z = np.block([M, N])
-
-zeros = eig(z)[0]
+zeros = eig(np.array([M,N]))[0]
 poles = eig(Ac)[0]
 print("Poles:",poles,"\nSystem stable:",np.all(poles<0))
 print("zeros:",zeros,"\nController stable:",np.all(zeros<0))
