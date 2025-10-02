@@ -6,6 +6,9 @@ import src.PIDcontrolor as pid
 from src.FourTankSystem import FourTankSystem
 import sys
 
+colors = ['dodgerblue', 'tomato', 'limegreen', 'orange']
+ls = ['-', '-', '-']
+
 t0 = 0
 tf = 20*90
 m10 = 0
@@ -15,7 +18,7 @@ m40 = 0
 F1 = 250
 F2 = 325
 F3 = 100
-F4 = 100
+F4 = 120
 x0 = np.array([m10,m20,m30,m40])
 u = np.array([F1,F2])
 d = np.array([F3,F4])
@@ -26,6 +29,7 @@ delta_t = 1
 
 # Define distrubances
 goal = np.array([100.0, 100.0])  # Height of Tank 1 and 2
+good_goal = np.array([111.05, 100.0])  # Height of Tank 1 and 2
 u0 = np.array([F1, F2])
 Rvv = np.eye(4)*0.01
 umin = 1
@@ -134,7 +138,7 @@ if sys.argv[1] == 'p':
             ncol=2, fancybox=True, shadow=True)
 
     plt.tight_layout()
-    plt.savefig('figures/Problem_3_Kp.png')
+    plt.savefig('figures/Problem3/Problem_3_Kp.png')
     # plt.show()
 
 Ki = 0.3
@@ -206,10 +210,10 @@ if sys.argv[1] == 'pi':
             ncol=2, fancybox=True, shadow=True)
 
     plt.tight_layout()
-    plt.savefig('figures/Problem_3_Ki.png')
+    plt.savefig('figures/Problem3/Problem_3_Ki.png')
     # plt.show()
 
-Kd = 100
+Kd = 500
 if sys.argv[1] == 'pid':
     controller_pid = pid.PIDController(Kp, Ki, 10, setpoint, delta_t, umin, umax)
 
@@ -252,7 +256,7 @@ if sys.argv[1] == 'pid':
     axes[1, 0].grid(True, linestyle='--', alpha=0.5)
     axes[1, 1].grid(True, linestyle='--', alpha=0.5)
 
-    controller_pid = pid.PIDController(Kp, Ki, 5e2, setpoint, delta_t, umin, umax)
+    controller_pid = pid.PIDController(Kp, Ki, 1e3, setpoint, delta_t, umin, umax)
 
     t, x, u, d, h = Model.ClosedLoop((t0, tf), state_0, controller_pid)
 
@@ -278,5 +282,28 @@ if sys.argv[1] == 'pid':
             ncol=2, fancybox=True, shadow=True)
 
     plt.tight_layout()
-    plt.savefig('figures/Problem_3_Kd.png')
+    plt.savefig('figures/Problem3/Problem_3_Kd.png')
     # plt.show()
+
+if sys.argv[1] == 'sim':
+    colors = ['dodgerblue', 'tomato', 'limegreen', 'orange']
+    ls = ['-', '-', '-']
+    
+    delta_t = 60
+    import params.pid_params as pid_params
+
+    controller_pid = pid.PIDController(pid_params.Kp, pid_params.Ki, pid_params.Kd, good_goal, delta_t, umin, umax)
+    Model = FourTankSystem(Rvv, Rvv, p, delta_t, F3 = F3, F4 = F4)
+    t, x, u, d, h = Model.ClosedLoop((t0, tf), state_0, controller_pid)
+
+
+    fig, axes = plt.subplots(2, 1, figsize=(12, 12), sharex=True)
+
+    for i in range(4):
+        axes[0].plot(t/60, h[i, :], label=f'Height of Tank {i+1}', color=colors[i], ls=ls[0])
+        if i < 2:
+            axes[1].step(t/60, u[i, :], label=f'Flow of Tank {i+1}', color=colors[i], ls=ls[0])
+        else:
+            axes[1].step(t/60, d[i-2, :], label=f'Flow of Tank {i+1}', color=colors[i], ls=ls[0])
+    plt.savefig('figures/Problem3/Problem_3_sim.png')
+    plt.show()

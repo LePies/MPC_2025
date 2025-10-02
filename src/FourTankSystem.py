@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.optimize import fsolve
+import tqdm
 
 
 class FourTankSystem:
@@ -145,7 +146,7 @@ class FourTankSystem:
 
         f = self.StateEquation if is_deterministic else self.FullEquation
 
-        for i in range(1, t_array.shape[0]):
+        for i in tqdm.tqdm(range(1, t_array.shape[0]), desc="Simulating open loop", unit="step", leave=True, ncols=80):
             ut = u[:, i-1]
             sol = solve_ivp(f, (t_array[i-1], t_array[i]), states_array[:, i-1], method='RK45',args = (ut,))
             state_new = sol.y[:,-1]
@@ -183,7 +184,7 @@ class FourTankSystem:
 
         f = self.StateEquation if is_deterministic else self.FullEquation
 
-        for i in range(1, t_array.shape[0]):
+        for i in tqdm.tqdm(range(1, t_array.shape[0]), desc="Simulating closed loop", unit="step", leave=True, ncols=80):
             zt = self.StateOutput(h_array[:, i-1])
             ut = controller.update(zt)
             sol = solve_ivp(f, (t_array[i-1], t_array[i]), states_array[:, i-1], method='RK45',args = (ut,))
