@@ -112,13 +112,17 @@ class FourTankSystem:
 
         state_0, is_deterministic = self.SetLoopStates(states, d)
         if callable(u):
-            def f_steady(states):
+            def f_steady(x):
+                states = np.concatenate([x, d])
                 ut = u(states)
-                return self.StateEquation(0, states, ut)
+                d_states = self.StateEquation(0, states, ut)
+                return d_states[4:]
         else:
-            def f_steady(states):   
-                return self.StateEquation(0, states, u)
-        steady_state = fsolve(f_steady, state_0)
+            def f_steady(x):
+                states = np.concatenate([x, d])
+                d_states = self.StateEquation(0, states, u)
+                return d_states[:4]
+        steady_state = fsolve(f_steady, state_0[:4])
         return steady_state[:4]
 
     def OpenLoop(self, tspan, states, u, d = np.array([])):
