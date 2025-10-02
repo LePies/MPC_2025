@@ -252,7 +252,7 @@ if sys.argv[1] == 'pid':
     axes[1, 0].grid(True, linestyle='--', alpha=0.5)
     axes[1, 1].grid(True, linestyle='--', alpha=0.5)
 
-    controller_pid = pid.PIDController(Kp, Ki, -1e2, setpoint, delta_t, umin, umax)
+    controller_pid = pid.PIDController(Kp, Ki, 5e2, setpoint, delta_t, umin, umax)
 
     t, x, u, d, h = Model.ClosedLoop((t0, tf), state_0, controller_pid)
 
