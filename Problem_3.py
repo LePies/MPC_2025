@@ -25,7 +25,7 @@ a1, a2, a3, a4, A1, A2, A3, A4, gamma1, gamma2, g, rho = p
 delta_t = 1
 
 # Define distrubances
-goal = np.array([15.0, 15.0])  # Height of Tank 1 and 2
+goal = np.array([100.0, 100.0])  # Height of Tank 1 and 2
 u0 = np.array([F1, F2])
 Rvv = np.eye(4)*0.01
 umin = 1
@@ -43,12 +43,7 @@ if sys.argv[1] == 'test':
     u_array = np.zeros((2, tf))
     u_array[0, :] = F1
     u_array[1, :] = F2
-    
-    print(Model.StateEquation(0, state_0, u_array[:, 0]))
-    xs = fsolve(lambda x: Model.StateEquation(0, x, u_array[:, 0]), state_0)
-    print(xs)
-    print(Model.StateEquation(0, xs, u_array[:, 0]))
-    sys.exit()
+
     t,x,y,d,h = Model.OpenLoop((t0, tf), state_0, u_array)
     
     plt.plot(t/60, h[0, :], label='Height of Tank 1', color='dodgerblue', ls='-')
@@ -69,7 +64,7 @@ if sys.argv[1] == 'test':
 
 setpoint = goal
 
-Kp = 10
+Kp = 30
 
 if sys.argv[1] == 'p':
     controller_p = pid.PIDController(5, 0, 0, setpoint, delta_t, umin, umax)
@@ -142,9 +137,9 @@ if sys.argv[1] == 'p':
     plt.savefig('figures/Problem_3_Kp.png')
     # plt.show()
 
-Ki = 0.1
+Ki = 0.3
 if sys.argv[1] == 'pi':
-    controller_pi = pid.PIDController(Kp, 0.05, 0, setpoint, delta_t, umin, umax)
+    controller_pi = pid.PIDController(Kp, 0.1, 0, setpoint, delta_t, umin, umax)
 
     t, x, u, d, h = Model.ClosedLoop((t0, tf), state_0, controller_pi)
 
@@ -161,7 +156,7 @@ if sys.argv[1] == 'pi':
 
     axes[0, 0].set_ylim(0, np.max(h)*1.1)
     axes[0, 1].set_ylim(0, np.max(u)*1.1)
-    axes[0, 0].set_ylabel('K_i = 0.05\nHeight [m]')
+    axes[0, 0].set_ylabel('K_i = 0.1\nHeight [m]')
     axes[0, 1].set_ylabel('Flow [m³/s]')
     axes[0, 0].grid(True, linestyle='--', alpha=0.5)
     axes[0, 1].grid(True, linestyle='--', alpha=0.5)
@@ -214,9 +209,9 @@ if sys.argv[1] == 'pi':
     plt.savefig('figures/Problem_3_Ki.png')
     # plt.show()
 
-Kd = 10
+Kd = 100
 if sys.argv[1] == 'pid':
-    controller_pid = pid.PIDController(Kp, Ki, 1, setpoint, delta_t, umin, umax)
+    controller_pid = pid.PIDController(Kp, Ki, 10, setpoint, delta_t, umin, umax)
 
     t, x, u, d, h = Model.ClosedLoop((t0, tf), state_0, controller_pid)
 
@@ -233,7 +228,7 @@ if sys.argv[1] == 'pid':
 
     axes[0, 0].set_ylim(0, np.max(h)*1.1)
     axes[0, 1].set_ylim(0, np.max(u)*1.1)
-    axes[0, 0].set_ylabel('K_d = 1\nHeight [m]')
+    axes[0, 0].set_ylabel('K_d = 10\nHeight [m]')
     axes[0, 1].set_ylabel('Flow [m³/s]')
     axes[0, 0].grid(True, linestyle='--', alpha=0.5)
     axes[0, 1].grid(True, linestyle='--', alpha=0.5)
@@ -257,7 +252,7 @@ if sys.argv[1] == 'pid':
     axes[1, 0].grid(True, linestyle='--', alpha=0.5)
     axes[1, 1].grid(True, linestyle='--', alpha=0.5)
 
-    controller_pid = pid.PIDController(Kp, Ki, 500, setpoint, delta_t, umin, umax)
+    controller_pid = pid.PIDController(Kp, Ki, -1e2, setpoint, delta_t, umin, umax)
 
     t, x, u, d, h = Model.ClosedLoop((t0, tf), state_0, controller_pid)
 
@@ -270,7 +265,7 @@ if sys.argv[1] == 'pid':
 
     axes[2, 0].set_ylim(0, np.max(h)*1.1)
     axes[2, 1].set_ylim(0, np.max(u)*1.1)
-    axes[2, 0].set_ylabel('K_d = 25\nHeight [m]')
+    axes[2, 0].set_ylabel('K_d = 1e3\nHeight [m]')
     axes[2, 1].set_ylabel('Flow [m³/s]')
     axes[2, 0].set_xlabel('Time [m]')
     axes[2, 1].set_xlabel('Time [m]')

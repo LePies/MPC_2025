@@ -111,6 +111,7 @@ class FourTankSystem:
         self.CheckInputDimension(states, d)
 
         state_0, is_deterministic = self.SetLoopStates(states, d)
+        d = state_0[4:]
         if callable(u):
             def f_steady(x):
                 states = np.concatenate([x, d])
