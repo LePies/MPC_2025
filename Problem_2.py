@@ -53,7 +53,7 @@ for i in range(4):
             color=colors[i], ls=ls[0]
         )
     else:   
-        axes[0,1].plot(
+        axes[0,1].step(
             t/60, d_out[i-2, :],
             label=f'Flow {i+1} ($d_{i+1}$)',
             color=colors[i],
@@ -83,7 +83,7 @@ for i in range(4):
             ls=ls[1]
         )
     else:
-        axes[1,1].plot(
+        axes[1,1].step(
             t/60, d_out[i-2, :],
             label=f'Flow of Tank {i+1} ($d_{i+1}$)',
             color=colors[i],

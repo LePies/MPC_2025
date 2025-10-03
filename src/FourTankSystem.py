@@ -222,19 +222,20 @@ class FourTankSystem:
                     [0, 0,-1/T[2], 0],
                     [0, 0, 0,-1/T[3]]])
         B=np.array([[self.rho*self.gamma[0], 0],[0, self.rho*self.gamma[1]],[0, self.rho*(1-self.gamma[1])],[self.rho*(1-self.gamma[0]), 0]])
+        E = np.array([[0,0],[0,0],[self.rho,0],[0,self.rho]])
         C=np.diag(1./(self.rho*A_vals))
         Cz=C[:2,:]
 
-        return A,B,C,Cz
+        return A,B,C,E,Cz
 
     def LinearizeContinousTime(self,xs,d):
 
         xs, is_deterministic = self.SetLoopStates(xs,d)
 
-        Ass, Bs, C, Cz = self.LinearizeDeterminitistic(xs)
+        Ass,Bs,C,E,Cz = self.LinearizeDeterminitistic(xs)
 
         if is_deterministic:
-            return Ass,Bs,C,Cz
+            return Ass,Bs,C,E,Cz
         
         Ads = np.array([[0,0],
                         [0,0],
@@ -250,15 +251,8 @@ class FourTankSystem:
 
         Bd = np.zeros((2,2))
         Bc = np.block([[Bs],[Bd]])
-
-        Ec = np.array([[0,0],
-                      [0,0],
-                      [self.rho,0],
-                      [0,self.rho],
-                      [-self.a_f3,0],
-                      [0,-self.a_f4]])
         
-        return Ac,Bc,Ec,C,Cz
+        return Ac,Bc,C,Cz
     
 
 
