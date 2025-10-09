@@ -8,7 +8,7 @@ import sympy as sp
 
 
 def MN_matrix_SISO(A,B,C):
-    
+
     n = A.shape[0]          # number of states
     m = B.shape[1]          # number of inputs
     p = C.shape[0]          # number of measured outputs for zeros
@@ -70,6 +70,7 @@ Dz = np.zeros((Cz.shape[1], Bc.shape[1]))
 
 
 
+
 Cz_SISO = Cz[:1, :]    
 Bc_SISO = Bc[:, :1] 
 Dz_SISO = Dz[:, :1]
@@ -80,6 +81,9 @@ print(Dz_SISO)
 
 M, N = MN_matrix_SISO(Ac,Bc_SISO,Cz_SISO)
 
+zeros, poles, stable_ctrl, stable_sys = compute_zeros_poles(M, N, Ac)
+Ts = 1
+Ad, Bd, C, Cz = Model_Deterministic.LinearizeDiscreteTime(xs,d,Ts)
 
 print("Poles:", poles)
 print("System stable (cont.-time):", stable_sys)

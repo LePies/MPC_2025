@@ -2,6 +2,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.optimize import fsolve
 import tqdm
+import scipy as sp
 
 
 class FourTankSystem:
@@ -258,9 +259,20 @@ class FourTankSystem:
         G = np.array([[0,0],[0,0],[0,0],[0,0],[1,0],[0,1]])
         
         return Ac,Bc,G,C,Cz
-    
-    def LinearizeDiscreteTime(self,xs,d):
 
+    def LinearizeDiscreteTime(self,xs,d,Ts):
 
-        test = 1
+        Ac,Bc,G,C,Cz = self.LinearizeContinousTime(xs,d)
+
+        # Augment A and B for matrix exponential
+        n = Ac.shape[0]
+        m = Bc.shape[1]
+        M = np.zeros((n + m, n + m))
+        M[:n, :n] = Ac
+        M[:n, n:] = Bc
+        Md = sp.linalg.expm(M * Ts)
+        Ad = Md[:n, :n]
+        Bd = Md[:n, n:]
+        
+        return Ad, Bd, C, Cz
 
