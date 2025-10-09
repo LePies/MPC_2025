@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.linalg import eig
 import control as ctrl
 import sympy as sp
+from params.initialize import initialize
 
 
 def MN_matrix_SISO(A,B,C):
@@ -40,24 +41,23 @@ def compute_zeros_poles(M, N, A):
 
     return zeros, poles, stable_ctrl, stable_sys
 
-t0 = 0
-tf = 20*60 
-m10 = 0
-m20 = 0 
-m30 = 0
-m40 = 0
-F1 = 250
-F2 = 325
-F3 = 100
-F4 = 120
-x0 = np.array([m10,m20,m30,m40])
-u = np.array([F1,F2])
-d = np.array([F3,F4])
-p = para.parameters()
-R_s = np.eye(4)*0.1
-R_d = np.eye(2)*0.1
-delta_t = 1
+def G(s,C,A,B):
+    return C @ np.linalg.inv(s*np.eye(A.shape[0]) - A) @ B
 
+def filter_zeros_poles(a,b,tol = 0.0001):
+
+    # For each element in a, check if there is any element in b within ±tol
+    mask_a = np.array([not np.any(np.abs(b - x) < tol) for x in a])
+    mask_b = np.array([not np.any(np.abs(a - y) < tol) for y in b])
+
+    # Filter arrays
+    a_filtered = a[mask_a]
+    b_filtered = b[mask_b]
+
+    return a_filtered, b_filtered
+
+
+x0, u, d, p , R_s, R_d, delta_t = initialize()
 
 # Linearize continous time
 Model_Deterministic = FourTankSystem(R_s*0, R_d*0, p, delta_t)
@@ -68,9 +68,6 @@ xs = np.concatenate((xs, np.zeros(2)))
 Ac,Bc,Ec,C,Cz = Model_Deterministic.LinearizeContinousTime(xs,d)
 Dz = np.zeros((Cz.shape[1], Bc.shape[1]))
 
-
-
-
 Cz_SISO = Cz[:1, :]    
 Bc_SISO = Bc[:, :1] 
 Dz_SISO = Dz[:, :1]
@@ -80,11 +77,10 @@ print(Bc_SISO)
 print(Dz_SISO)
 
 M, N = MN_matrix_SISO(Ac,Bc_SISO,Cz_SISO)
-
 zeros, poles, stable_ctrl, stable_sys = compute_zeros_poles(M, N, Ac)
-Ts = 1
-Ad, Bd, C, Cz = Model_Deterministic.LinearizeDiscreteTime(xs,d,Ts)
+zeros, poles = filter_zeros_poles(zeros,poles)
 
+print("Kp=", G(3,Cz_SISO,Ac,Bc_SISO)/0.01263919)
 print("Poles:", poles)
 print("System stable (cont.-time):", stable_sys)
 print("Transmission zeros:", zeros)
