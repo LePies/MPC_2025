@@ -1,4 +1,4 @@
-import parameters_tank as para
+import params.parameters_tank as para
 import numpy as np
 
 def initialize():

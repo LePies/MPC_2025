@@ -4,7 +4,6 @@ from scipy.optimize import fsolve
 import tqdm
 import scipy as sp
 
-
 class FourTankSystem:
     def __init__(
         self,
@@ -126,7 +125,11 @@ class FourTankSystem:
                 d_states = self.StateEquation(0, states, u)
                 return d_states[:4]
         steady_state = fsolve(f_steady, state_0[:4])
-        return steady_state[:4]
+
+        if is_deterministic:
+            return steady_state[:4]
+        else:
+            return np.concatenate([steady_state,d])
 
     def OpenLoop(self, tspan, states, u, d = np.array([])):
         if np.size(tspan) != 2:

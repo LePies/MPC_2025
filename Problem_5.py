@@ -1,12 +1,7 @@
 import numpy as np
 from src.FourTankSystem import FourTankSystem
-import params.parameters_tank as para
-import matplotlib.pyplot as plt
 from scipy.linalg import eig
-import control as ctrl
-import sympy as sp
 from params.initialize import initialize
-
 
 def MN_matrix_SISO(A,B,C):
 
@@ -56,31 +51,40 @@ def filter_zeros_poles(a,b,tol = 0.0001):
 
     return a_filtered, b_filtered
 
+def SISO_system(B,C,input,output):
+
+    if input == 1 and output == 1:
+        B_siso = B[:, :1]
+        C_siso = C[:1, :]
+        return  B_siso, C_siso
+    elif input == 1 and output == 2:
+        B_siso = B[:, :1]
+        C_siso = C[1:, :]
+        return B_siso, C_siso
+    elif input == 1 and output == 2:
+        B_siso = B[:, 1:]
+        C_siso = C[1:, :]
+        return B_siso, C_siso
+    elif input == 2 and output == 2:
+        B_siso = B[:, 1:]
+        C_siso = C[1:, :]
+        return B_siso, C_siso
 
 x0, u, d, p , R_s, R_d, delta_t = initialize()
 
 # Linearize continous time
-Model_Deterministic = FourTankSystem(R_s*0, R_d*0, p, delta_t)
+Model_Stochastic = FourTankSystem(R_s*0, R_d*0, p, delta_t)
 x0 = np.concatenate((x0, np.zeros(2)))  
-d = np.array([])
-xs = Model_Deterministic.GetSteadyState(x0, u, d)
-xs = np.concatenate((xs, np.zeros(2))) 
-Ac,Bc,Ec,C,Cz = Model_Deterministic.LinearizeContinousTime(xs,d)
-Dz = np.zeros((Cz.shape[1], Bc.shape[1]))
+xs = Model_Stochastic.GetSteadyState(x0, u)
+print(len(xs))
 
-Cz_SISO = Cz[:1, :]    
-Bc_SISO = Bc[:, :1] 
-Dz_SISO = Dz[:, :1]
-print("SISO")
-print(Cz_SISO)
-print(Bc_SISO)
-print(Dz_SISO)
-
+Ac,Bc,Ec,C,Cz = Model_Stochastic.LinearizeContinousTime(xs,d)
+Bc_SISO,Cz_SISO = SISO_system(Bc,Cz,1,1)
 M, N = MN_matrix_SISO(Ac,Bc_SISO,Cz_SISO)
 zeros, poles, stable_ctrl, stable_sys = compute_zeros_poles(M, N, Ac)
 zeros, poles = filter_zeros_poles(zeros,poles)
 
-print("Kp=", G(3,Cz_SISO,Ac,Bc_SISO)/0.01263919)
+print("Kp=", G(0,Cz_SISO,Ac,Bc_SISO)/0.01263919)
 print("Poles:", poles)
 print("System stable (cont.-time):", stable_sys)
 print("Transmission zeros:", zeros)
