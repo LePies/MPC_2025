@@ -28,74 +28,95 @@ noise_leves = [0, 0.01, 0.1, 0.5]
 colors = ['dodgerblue', 'tomato', 'limegreen', 'orange']
 ls = ['-', '-', '-']
 
-df = pd.DataFrame(columns=['noise_level', 'step', 'G_1(step)', 'G_2(step)', 'G_3(step)', 'G_4(step)', 'tau_1', 'tau_2', 'tau_3', 'tau_4'])
+df = pd.DataFrame(columns=['Manipulated input', 'noise_level', 'step', 'K_11', 'K_12', 'K_21', 'K_22', 'tau_1', 'tau_2', 'tau_3', 'tau_4'])
 
 df_i = 0
 
 fig, axes = plt.subplots(4, 3, figsize=(12, 12), sharex=True)
 
-for k, noise_level in enumerate(noise_leves):
-    Rvv = np.eye(4)*noise_level
+for u_idx in range(2):
+    for k, noise_level in enumerate(noise_leves):
+        Rvv = np.eye(4)*noise_level
 
-    Model = FourTankSystem(Rvv, Rvv, p, delta_t, F3 = F3, F4 = F4, sigma_f3 = noise_level, sigma_f4 = noise_level)
+        Model = FourTankSystem(Rvv, Rvv, p, delta_t, F3 = F3, F4 = F4, sigma_f3 = noise_level, sigma_f4 = noise_level)
 
-    xs = Model.GetSteadyState(x0, u, d)
-
-
-    # Computing steady state
-    xs = Model.GetSteadyState(x0, u, d)
-
-    hs = xs/(rho*np.array([A1,A2,A3,A4]))
-
-    u_array = np.zeros((2, Nt))
-    u_array[0, :] = F1
-    u_array[1, :] = F2
+        xs = Model.GetSteadyState(x0, u, d)
 
 
-    steps = [0.1, 0.25, 0.5]
+        # Computing steady state
+        xs = Model.GetSteadyState(x0, u, d)
 
-    ss_max = 0
+        hs = xs/(rho*np.array([A1,A2,A3,A4]))
 
-    for j, step in enumerate(steps):
-        u_array[0, Nt//4:] = F1*(1 + step)
-        u_array[1, Nt//4:] = F2*(1 + step)
+        u_array = np.zeros((2, Nt))
+        u_array[0, :] = F1
+        u_array[1, :] = F2
 
-        state_0 = np.concatenate([xs, d])
 
-        t, x, u_out, d_out, h = Model.OpenLoop((t0, Nt*delta_t), state_0, u_array)
+        steps = [0.1, 0.25, 0.5]
 
-        h_norm = (h - hs[:, None]) / hs[:, None]
-        u_norm = (u_out - u[:, None]) / u[:, None]
-        ss_new = np.mean(h_norm[:, -Nt//10:], axis = 1)
+        ss_max = 0
 
-        tau_idxs = np.where(h_norm / ss_new[:,None] > 0.63)
-        tau_idx = np.array([tau_idxs[1][tau_idxs[0] == i][0] for i in range(4)])
-        tau = t[tau_idx]
+        for j, step in enumerate(steps):
+            if u_idx == 0:
+                u_array[0, Nt//4:] = F1*(1 + step)
+            else:
+                u_array[1, Nt//4:] = F2*(1 + step)
+            
 
-        df.loc[df_i] = [noise_level, step, ss_new[0], ss_new[1], ss_new[2], ss_new[3], tau[0], tau[1], tau[2], tau[3]]
-        df_i += 1
 
-        if np.max(ss_new) > ss_max:
-            ss_max = np.max(ss_new)
+            state_0 = np.concatenate([xs, d])
 
-        print(f"Step Response:\n\tstep: {step}\n\tss: {ss_new}\n\ttaus: {tau}")
+            t, x, u_out, d_out, h = Model.OpenLoop((t0, Nt*delta_t), state_0, u_array)
 
-        for i in range(4):
-            axes[k, j].grid(True, linestyle='--', alpha=0.5)
-            axes[k, j].plot(t/60, h_norm[i, :], label=f'Normalized Height of Tank {i+1}', color=colors[i], ls=ls[0])
-            if i < 2:
-                # axes[j, -1].plot(t/60, u_norm[i, :], label=f'Normalized Flow of Tank {i+1}', color=colors[i], ls=ls[0])
-                axes[k, j].vlines(tau[i]/60, 0, h_norm[i, tau_idx[i]], color=colors[i], ls='--', alpha=0.5)
-                axes[k, j].hlines(h_norm[i, tau_idx[i]], 0, tau[i]/60, color=colors[i], ls='--', alpha=0.5)
+            y = Model.StateOutput(h)
 
-                # axes[j, -1].vlines(tau[i]/60, 0, u_norm[0, tau_idx[i]], color=colors[i], ls='--', alpha=0.5)
-                # axes[j, -1].hlines(u_norm[0, tau_idx[i]], 0, tau[i]/60, color=colors[i], ls='--', alpha=0.5)
+            t_mod = t[Nt//4]
+            h_norm = (h - hs[:, None]) / hs[:, None]
+            u_norm = (u_out - u[:, None]) / u[:, None]
+            ss_new = np.mean(h_norm[:, -Nt//10:], axis = 1)
 
-    axes[0, 2].legend(loc='upper center', bbox_to_anchor=(-0.75, 1.30),
-        ncol=2, fancybox=True, shadow=True)
+            tau_idxs = np.where(h_norm / ss_new[:,None] > 0.63)
+            tau_idx = np.array([tau_idxs[1][tau_idxs[0] == i][0] for i in range(4)])
+            tau = t[tau_idx] - t_mod
+            tau[tau < 0] = 0
 
-    print(f'Noise level: {noise_level}\nPlot saved to Problem_4_noise_{noise_level}.png')
-    print("-"*10)
+            if u_idx == 0:
+                k11 = y[0, 0] / (step*F1)
+                k12 = y[1, 0] / (step*F1)
+                k21 = 0
+                k22 = 0
+            else:
+                k11 = 0
+                k12 = 0
+                k21 = y[0, 1] / (step*F2)
+                k22 = y[1, 1] / (step*F2)
+
+            df.loc[df_i] = [u_idx, noise_level, step, k11, k12, k21, k22, tau[0], tau[1], tau[2], tau[3]]
+            df_i += 1
+
+            if np.max(ss_new) > ss_max:
+                ss_max = np.max(ss_new)
+
+            print(f"Step Response:\n\tstep: {step}\n\tss: {ss_new}\n\ttaus: {tau}")
+
+            if u_idx == 0:
+                for i in range(4):
+                    axes[k, j].grid(True, linestyle='--', alpha=0.5)
+                    axes[k, j].plot(t/60, h_norm[i, :], label=f'Normalized Height of Tank {i+1}', color=colors[i], ls=ls[0])
+                    # if i < 2:
+                    # axes[j, -1].plot(t/60, u_norm[i, :], label=f'Normalized Flow of Tank {i+1}', color=colors[i], ls=ls[0])
+                    axes[k, j].vlines((t_mod + tau[i])/60, 0, h_norm[i, tau_idx[i]], color=colors[i], ls='--', alpha=0.5)
+                    axes[k, j].hlines(h_norm[i, tau_idx[i]], 0, (t_mod + tau[i])/60, color=colors[i], ls='--', alpha=0.5)
+
+                    # axes[j, -1].vlines(tau[i]/60, 0, u_norm[0, tau_idx[i]], color=colors[i], ls='--', alpha=0.5)
+                    # axes[j, -1].hlines(u_norm[0, tau_idx[i]], 0, (t_mod + tau[i])/60, color=colors[i], ls='--', alpha=0.5)
+
+        axes[0, 2].legend(loc='upper center', bbox_to_anchor=(-0.75, 1.30),
+            ncol=2, fancybox=True, shadow=True)
+
+        print(f'Noise level: {noise_level}\nPlot saved to Problem_4_noise_{noise_level}.png')
+        print("-"*10)
 
 # plt.tight_layout()
 axes[3, 0].set_xlabel('Time [m]\nStep = 0.1')
