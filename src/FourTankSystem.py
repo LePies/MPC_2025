@@ -241,9 +241,9 @@ class FourTankSystem:
                         [0,0],
                         [self.rho,0],
                         [0,self.rho]])
-        Asd = np.zeros((4, 2))
-        Add = np.array([[-self.a_f3], 
-                        [-self.a_f4]])
+        Asd = np.zeros((2, 4))
+        Add = np.array([[-self.a_f3,0], 
+                        [0,-self.a_f4]])
         Ac = np.block([
             [Ass, Ads],
             [Asd, Add]
@@ -251,8 +251,16 @@ class FourTankSystem:
 
         Bd = np.zeros((2,2))
         Bc = np.block([[Bs],[Bd]])
-        
-        return Ac,Bc,C,Cz
-    
 
+        C = np.hstack([C, np.zeros((C.shape[0], 2))])
+        Cz = C[:2,:]
+
+        G = np.array([[0,0],[0,0],[0,0],[0,0],[1,0],[0,1]])
+        
+        return Ac,Bc,G,C,Cz
+    
+    def LinearizeDiscreteTime(self,xs,d):
+
+
+        test = 1
 
