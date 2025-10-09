@@ -2,6 +2,7 @@ import numpy as np
 from src.FourTankSystem import FourTankSystem
 from scipy.linalg import eig
 from params.initialize import initialize
+import pandas as pd
 
 def MN_matrix_SISO(A,B,C):
 
@@ -34,6 +35,8 @@ def compute_zeros_poles(M, N, A):
     poles = eig(A, left=False, right=False) # Returns only eigenvalues 
     stable_sys = np.all(np.real(poles) < 0)
 
+    zeros, poles = filter_zeros_poles(zeros,poles)
+
     return zeros, poles, stable_ctrl, stable_sys
 
 def G(s,C,A,B):
@@ -57,7 +60,7 @@ def SISO_system(B,C,input,output):
         B_siso = B[:, :1]
         C_siso = C[:1, :]
         return  B_siso, C_siso
-    elif input == 1 and output == 2:
+    elif input == 2 and output == 1:
         B_siso = B[:, :1]
         C_siso = C[1:, :]
         return B_siso, C_siso
@@ -79,10 +82,31 @@ xs = Model_Stochastic.GetSteadyState(x0, u)
 print(len(xs))
 
 Ac,Bc,Ec,C,Cz = Model_Stochastic.LinearizeContinousTime(xs,d)
+
+pairs = [(1, 1), (2, 1), (2, 2), (1, 2)]
+Gains = pd.DataFrame()
+Tau = pd.DataFrame()
+
+for pair in pairs:
+    input = pair[0]
+    output = pair[1]
+
+    Bc_SISO,Cz_SISO = SISO_system(Bc,Cz,input,output)
+    M, N = MN_matrix_SISO(Ac,Bc_SISO,Cz_SISO)
+    zeros, poles, stable_ctrl, stable_sys = compute_zeros_poles(M, N, Ac)
+    
+    if len(poles) > 1:
+        factor = poles[0]*poles[1]
+    else:
+        factor = poles[0]
+
+    Tau[f"{pair}"] = 1/np.real(factor)
+    Gains[f"{pair}"] = (G(0,Cz_SISO,Ac,Bc_SISO)/np.abs(factor))[0]
+
+
 Bc_SISO,Cz_SISO = SISO_system(Bc,Cz,1,1)
 M, N = MN_matrix_SISO(Ac,Bc_SISO,Cz_SISO)
 zeros, poles, stable_ctrl, stable_sys = compute_zeros_poles(M, N, Ac)
-zeros, poles = filter_zeros_poles(zeros,poles)
 
 print("Kp=", G(0,Cz_SISO,Ac,Bc_SISO)/0.01263919)
 print("Poles:", poles)
