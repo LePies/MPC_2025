@@ -66,7 +66,7 @@ def SISO_system(B,C,input,output):
         return B_siso, C_siso
     elif input == 1 and output == 2:
         B_siso = B[:, 1:]
-        C_siso = C[1:, :]
+        C_siso = C[:1, :]
         return B_siso, C_siso
     elif input == 2 and output == 2:
         B_siso = B[:, 1:]
@@ -84,8 +84,10 @@ print(len(xs))
 Ac,Bc,Ec,C,Cz = Model_Stochastic.LinearizeContinousTime(xs,d)
 
 pairs = [(1, 1), (2, 1), (2, 2), (1, 2)]
-Gains = pd.DataFrame()
-Tau = pd.DataFrame()
+Gains = pd.DataFrame(index=[1,2])
+Tau = pd.DataFrame(index=[1,2])
+Zeros = pd.DataFrame(index=[1,2])
+Poles = pd.DataFrame(index=[1,2])
 
 for pair in pairs:
     input = pair[0]
@@ -99,18 +101,42 @@ for pair in pairs:
         factor = poles[0]*poles[1]
     else:
         factor = poles[0]
+    
+    # Tau
+    TauN = len(np.array([1/np.real(factor)]))
+    zerospad = np.zeros(2-TauN)
+    Tau[f"{pair}"] = np.concatenate([np.array([1/np.real(factor)]),zerospad])
+    
+    # Gain 
+    GainN = len((G(0,Cz_SISO,Ac,Bc_SISO)/np.abs(factor))[0])
+    zerospad = np.zeros(2-GainN)
+    Gains[f"{pair}"] = np.concatenate([(G(0,Cz_SISO,Ac,Bc_SISO)/np.abs(factor)/np.abs(factor))[0],zerospad])
+    
+    # Zeros
+    ZerosN = len(np.real(zeros))
+    zerospad = np.zeros(2-ZerosN)
+    Zeros[f"{pair}"] = np.concatenate([np.real(zeros),zerospad])
+    
+    # Poles
+    PolesN = len(np.real(poles))
+    zerospad = np.zeros(2-PolesN)
+    Poles[f"{pair}"] = np.concatenate([np.real(poles),zerospad])
 
-    Tau[f"{pair}"] = 1/np.real(factor)
-    Gains[f"{pair}"] = (G(0,Cz_SISO,Ac,Bc_SISO)/np.abs(factor))[0]
+print("Tau:\n ", Tau)
+print("Gain:\n ",Gains)
+print("Zeros:\n ",Zeros)
+print("Poles:\n ",Poles)
+print("G0: ",  G(0,Cz_SISO,Ac,Bc_SISO))
 
+test = False
+if test:
+    Bc_SISO,Cz_SISO = SISO_system(Bc,Cz,1,1)
+    M, N = MN_matrix_SISO(Ac,Bc_SISO,Cz_SISO)
+    zeros, poles, stable_ctrl, stable_sys = compute_zeros_poles(M, N, Ac)
 
-Bc_SISO,Cz_SISO = SISO_system(Bc,Cz,1,1)
-M, N = MN_matrix_SISO(Ac,Bc_SISO,Cz_SISO)
-zeros, poles, stable_ctrl, stable_sys = compute_zeros_poles(M, N, Ac)
-
-print("Kp=", G(0,Cz_SISO,Ac,Bc_SISO)/0.01263919)
-print("Poles:", poles)
-print("System stable (cont.-time):", stable_sys)
-print("Transmission zeros:", zeros)
-print("Controller stable (zeros LHP):", stable_ctrl)
+    print("Kp=", G(0,Cz_SISO,Ac,Bc_SISO)/0.01263919)
+    print("Poles:", poles)
+    print("System stable (cont.-time):", stable_sys)
+    print("Transmission zeros:", zeros)
+    print("Controller stable (zeros LHP):", stable_ctrl)
 
