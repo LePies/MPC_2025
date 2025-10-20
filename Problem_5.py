@@ -3,6 +3,7 @@ from src.FourTankSystem import FourTankSystem
 from scipy.linalg import eig
 from params.initialize import initialize
 import pandas as pd
+import matplotlib.pyplot as plt
 
 def MN_matrix_SISO(A,B,C):
 
@@ -72,10 +73,27 @@ def SISO_system(B,C,input,output):
         B_siso = B[:, 1:]
         C_siso = C[1:, :]
         return B_siso, C_siso
+    
+def markov_parameters(Ad, Bd, C, D=None, N=100):
+
+    n = Ad.shape[0]
+    p, m = C.shape[0], Bd.shape[1]
+    if D is None:
+        D = np.zeros((p, m))
+    H = []
+    H.append(D)  # H_0
+    A_pow = np.eye(n)  # Ad^0
+    for k in range(1, N):
+        Hk = C @ A_pow @ Bd
+        H.append(Hk)
+        A_pow = Ad @ A_pow
+
+    H = np.stack(H, axis=0) # convert list to array
+    return H  
 
 x0, u, d, p , R_s, R_d, delta_t = initialize()
 
-# Linearize continous time
+#%% Linearize continous time
 Model_Stochastic = FourTankSystem(R_s*0, R_d*0, p, delta_t)
 x0 = np.concatenate((x0, np.zeros(2)))  
 xs = Model_Stochastic.GetSteadyState(x0, u)
@@ -123,9 +141,76 @@ for pair in pairs:
     zerospad = np.zeros(2-PolesN)
     Poles[f"{pair}"] = np.concatenate([np.real(poles),zerospad])
 
-print("Tau:\n ", Tau)
-print("Gain:\n ",Gains)
-print("Zeros:\n ",Zeros)
-print("Poles:\n ",Poles)
-print("G0: ",  G(0,Cz_SISO,Ac,Bc_SISO))
+Tau.to_excel(r"Results\Problem5\Tau.xlsx")
+Gains.to_excel(r"Results\Problem5\Gain.xlsx")
+Zeros.to_excel(r"Results\Problem5\Zeros.xlsx")
+Poles.to_excel(r"Results\Problem5\Poles.xlsx")
+
+#%% Linearize Discrete time 
+Ts = 1
+Ad, Bd, C, Cz = Model_Stochastic.LinearizeDiscreteTime(xs, d, Ts)
+
+# Markov parameters 
+N = 100
+H = markov_parameters(Ad, Bd, Cz, D=np.zeros((Cz.shape[0], Bd.shape[1])), N=N)
+
+N, p, m = H.shape
+time = np.arange(N)
+
+# Impulse response (Markov parameters) 
+fig, axes = plt.subplots(p, m, figsize=(10, 8), sharex=True)
+fig.suptitle("Discrete-time Markov Parameters (Impulse Response Coefficients)", fontsize=14)
+
+for i in range(p):
+    for j in range(m):
+        hij = H[:, i, j]
+        ax = axes[i, j]
+        ax.plot(time, hij)
+        ax.set_title(f"y{i+1} \u2190 u{j+1}")
+        ax.grid(True)
+
+        # The leftmost column
+        if j == 0:
+            ax.set_ylabel(rf"$y_k$  $(H_k)_{{{i+1},{j+1}}}$")
+
+        else:
+            ax.set_ylabel("")
+
+        # The bottom row
+        if i == p - 1:
+            ax.set_xlabel("time")
+        else:
+            ax.set_xlabel("")
+
+plt.tight_layout()
+plt.savefig(r"Figures\Problem5\Problem_5_Markov_Parameters.png")
+
+# Step responses
+S = np.cumsum(H, axis=0)  # (N, p, m)
+
+fig, axes = plt.subplots(p, m, figsize=(10, 8), sharex=True)
+fig.suptitle("Discrete-time Step Responses (Unit Step Input)\n Cumulative Markov Parameters", fontsize=14)
+
+for i in range(p):
+    for j in range(m):
+        sij = S[:, i, j]
+        ax = axes[i, j]
+        ax.plot(time, sij)
+        ax.set_title(f"y{i+1} \u2190 u{j+1}")
+        ax.grid(True)
+
+        # The leftmost column
+        if j == 0:
+            ax.set_ylabel(rf"$y_k$  $(H_k)_{{{i+1},{j+1}}}$")
+        else:
+            ax.set_ylabel("")
+
+        # The bottom row
+        if i == p - 1:
+            ax.set_xlabel("time")
+        else:
+            ax.set_xlabel("")
+
+plt.tight_layout()
+plt.savefig(r"Figures\Problem5\Problem_5_Stepresponse.png")
 
