@@ -14,7 +14,7 @@ m40 = 0
 F1 = 250
 F2 = 325
 F3 = 100
-F4 = 10
+F4 = 120
 x0 = np.array([m10,m20,m30,m40])
 u = np.array([F1,F2])
 d = np.array([F3,F4])
@@ -28,7 +28,7 @@ noise_leves = [0, 0.01, 0.1, 0.5]
 colors = ['dodgerblue', 'tomato', 'limegreen', 'orange']
 ls = ['-', '-', '-']
 
-df = pd.DataFrame(columns=['Manipulated input', 'noise_level', 'step', 'K_11', 'K_12', 'K_21', 'K_22', 'tau_1', 'tau_2', 'tau_3', 'tau_4'])
+df = pd.DataFrame(columns=['Manipulated input', 'noise_level', 'step', 'K_11', 'K_12', 'K_21', 'K_22', 'tau_1', 'tau_2', 'tau_3', 'tau_4', 'delta_y_1', 'delta_y_2', 'delta_u_1', 'delta_u_2'])
 
 df_i = 0
 
@@ -72,8 +72,11 @@ for u_idx in range(2):
             y = Model.StateOutput(h)
 
             t_mod = t[Nt//4]
-            h_norm = (h - hs[:, None]) / hs[:, None]
-            u_norm = (u_out - u[:, None]) / u[:, None]
+            if u_idx == 0:
+                h_norm = (h - hs[:, None]) / (step*F1)
+            else:
+                h_norm = (h - hs[:, None]) / (step*F2)
+            u_norm = (u_out - u[:, None]) / u_out
             ss_new = np.mean(h_norm[:, -Nt//10:], axis = 1)
 
             tau_idxs = np.where(h_norm / ss_new[:,None] > 0.63)
@@ -81,18 +84,21 @@ for u_idx in range(2):
             tau = t[tau_idx] - t_mod
             tau[tau < 0] = 0
 
+            y_0 = np.mean(y[:, :Nt//10], axis = 1)
+            y_tk = np.mean(y[:, -Nt//10:], axis = 1)
+            delta_y = y_tk - y_0
             if u_idx == 0:
-                k11 = y[0, 0] / (step*F1)
-                k12 = y[1, 0] / (step*F1)
-                k21 = 0
+                k11 = ss_new[0]
+                k12 = 0
+                k21 = ss_new[1]
                 k22 = 0
             else:
                 k11 = 0
-                k12 = 0
-                k21 = y[0, 1] / (step*F2)
-                k22 = y[1, 1] / (step*F2)
+                k12 = ss_new[0]
+                k21 = 0
+                k22 = ss_new[1]
 
-            df.loc[df_i] = [u_idx, noise_level, step, k11, k12, k21, k22, tau[0], tau[1], tau[2], tau[3]]
+            df.loc[df_i] = [u_idx, noise_level, step, k11, k12, k21, k22, tau[0], tau[1], tau[2], tau[3], delta_y[0], delta_y[1], step*F1, step*F2]
             df_i += 1
 
             if np.max(ss_new) > ss_max:
