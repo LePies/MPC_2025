@@ -129,7 +129,7 @@ for pair in pairs:
     # Gain 
     GainN = len((G(0,Cz_SISO,Ac,Bc_SISO)/np.abs(factor))[0])
     zerospad = np.zeros(2-GainN)
-    Gains[f"{pair}"] = np.concatenate([(G(0,Cz_SISO,Ac,Bc_SISO)/np.abs(factor)/np.abs(factor))[0],zerospad])
+    Gains[f"{pair}"] = np.concatenate([G(0,Cz_SISO,Ac,Bc_SISO)[0],zerospad])#*np.abs(factor)/np.abs(factor))[0]
     
     # Zeros
     ZerosN = len(np.real(zeros))
@@ -141,10 +141,10 @@ for pair in pairs:
     zerospad = np.zeros(2-PolesN)
     Poles[f"{pair}"] = np.concatenate([np.real(poles),zerospad])
 
-Tau.to_excel(r"Results\Problem5\Tau.xlsx")
-Gains.to_excel(r"Results\Problem5\Gain.xlsx")
-Zeros.to_excel(r"Results\Problem5\Zeros.xlsx")
-Poles.to_excel(r"Results\Problem5\Poles.xlsx")
+Tau.to_csv(r"Results\Problem5\Tau.txt", sep='\t', index=True)
+Gains.to_csv(r"Results\Problem5\Gain.txt", sep='\t', index=True)
+Zeros.to_csv(r"Results\Problem5\Zeros.txt", sep='\t', index=True)
+Poles.to_csv(r"Results\Problem5\Poles.txt", sep='\t', index=True)
 
 #%% Linearize Discrete time 
 Ts = 1
