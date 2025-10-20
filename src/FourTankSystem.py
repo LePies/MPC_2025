@@ -2,7 +2,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.optimize import fsolve
 import tqdm
-
+import scipy as sp
 
 class FourTankSystem:
     def __init__(
@@ -125,7 +125,11 @@ class FourTankSystem:
                 d_states = self.StateEquation(0, states, u)
                 return d_states[:4]
         steady_state = fsolve(f_steady, state_0[:4])
-        return steady_state[:4]
+
+        if is_deterministic:
+            return steady_state[:4]
+        else:
+            return np.concatenate([steady_state,d])
 
     def OpenLoop(self, tspan, states, u, d = np.array([])):
         if np.size(tspan) != 2:
@@ -241,9 +245,9 @@ class FourTankSystem:
                         [0,0],
                         [self.rho,0],
                         [0,self.rho]])
-        Asd = np.zeros((4, 2))
-        Add = np.array([[-self.a_f3], 
-                        [-self.a_f4]])
+        Asd = np.zeros((2, 4))
+        Add = np.array([[-self.a_f3,0], 
+                        [0,-self.a_f4]])
         Ac = np.block([
             [Ass, Ads],
             [Asd, Add]
@@ -251,8 +255,27 @@ class FourTankSystem:
 
         Bd = np.zeros((2,2))
         Bc = np.block([[Bs],[Bd]])
-        
-        return Ac,Bc,C,Cz
-    
 
+        C = np.hstack([C, np.zeros((C.shape[0], 2))])
+        Cz = C[:2,:]
+
+        G = np.array([[0,0],[0,0],[0,0],[0,0],[1,0],[0,1]])
+        
+        return Ac,Bc,G,C,Cz
+
+    def LinearizeDiscreteTime(self,xs,d,Ts):
+
+        Ac,Bc,G,C,Cz = self.LinearizeContinousTime(xs,d)
+
+        # Augment A and B for matrix exponential
+        n = Ac.shape[0]
+        m = Bc.shape[1]
+        M = np.zeros((n + m, n + m))
+        M[:n, :n] = Ac
+        M[:n, n:] = Bc
+        Md = sp.linalg.expm(M * Ts)
+        Ad = Md[:n, :n]
+        Bd = Md[:n, n:]
+        
+        return Ad, Bd, C, Cz
 

@@ -1,52 +1,131 @@
 import numpy as np
 from src.FourTankSystem import FourTankSystem
-import params.parameters_tank as para
-import matplotlib.pyplot as plt
-from numpy.linalg import eig, inv, solve
-import control as ctrl
-import sympy as sp
+from scipy.linalg import eig
+from params.initialize import initialize
+import pandas as pd
 
-t0 = 0
-tf = 20*60 
-m10 = 0
-m20 = 0 
-m30 = 0
-m40 = 0
-F1 = 250
-F2 = 325
-F3 = 100
-F4 = 120
-x0 = np.array([m10,m20,m30,m40])
-u = np.array([F1,F2])
-d = np.array([F3,F4])
-p = para.parameters()
-R_s = np.eye(4)*0.1
-R_d = np.eye(2)*0.1
-delta_t = 1
+def MN_matrix_SISO(A,B,C):
 
+    n = A.shape[0]          # number of states
+    m = B.shape[1]          # number of inputs
+    p = C.shape[0]          # number of measured outputs for zeros
+
+    M = np.block([
+        [A,            B],
+        [C,      np.array([[0]])]
+    ])
+
+    N = np.block([
+        [np.eye(n),     np.zeros((n, m))],
+        [np.zeros((p, n)), np.zeros((p, m))]
+    ])
+
+    return M,N
+
+def compute_zeros_poles(M, N, A):
+
+    # Generalized eigenvalues of (M, N) 
+    zeros = eig(M, N, left=False, right=False) # Returns only eigenvalues
+
+    # Keep only finite zeros 
+    finite_mask = np.isfinite(zeros)
+    zeros = zeros[finite_mask]
+    stable_ctrl = np.all(np.real(zeros) < 0) if zeros.size else False
+
+    poles = eig(A, left=False, right=False) # Returns only eigenvalues 
+    stable_sys = np.all(np.real(poles) < 0)
+
+    zeros, poles = filter_zeros_poles(zeros,poles)
+
+    return zeros, poles, stable_ctrl, stable_sys
+
+def G(s,C,A,B):
+    return C @ np.linalg.inv(s*np.eye(A.shape[0]) - A) @ B
+
+def filter_zeros_poles(a,b,tol = 0.0001):
+
+    # For each element in a, check if there is any element in b within ±tol
+    mask_a = np.array([not np.any(np.abs(b - x) < tol) for x in a])
+    mask_b = np.array([not np.any(np.abs(a - y) < tol) for y in b])
+
+    # Filter arrays
+    a_filtered = a[mask_a]
+    b_filtered = b[mask_b]
+
+    return a_filtered, b_filtered
+
+def SISO_system(B,C,input,output):
+
+    if input == 1 and output == 1:
+        B_siso = B[:, :1]
+        C_siso = C[:1, :]
+        return  B_siso, C_siso
+    elif input == 2 and output == 1:
+        B_siso = B[:, :1]
+        C_siso = C[1:, :]
+        return B_siso, C_siso
+    elif input == 1 and output == 2:
+        B_siso = B[:, 1:]
+        C_siso = C[:1, :]
+        return B_siso, C_siso
+    elif input == 2 and output == 2:
+        B_siso = B[:, 1:]
+        C_siso = C[1:, :]
+        return B_siso, C_siso
+
+x0, u, d, p , R_s, R_d, delta_t = initialize()
 
 # Linearize continous time
-Model_Deterministic = FourTankSystem(R_s*0, R_d*0, p, delta_t)
-xs = Model_Deterministic.GetSteadyState(x0, u, d)
-Ac,Bc,Ec,C,Cz = Model_Deterministic.LinearizeContinousTime(xs,d)
-print(Ac)
-print(Bc)
-print(C)
-print(Cz)
+Model_Stochastic = FourTankSystem(R_s*0, R_d*0, p, delta_t)
+x0 = np.concatenate((x0, np.zeros(2)))  
+xs = Model_Stochastic.GetSteadyState(x0, u)
 
-M = np.block([
-            [Ac, Bc],
-            [Cz, np.zeros((2,2))]
-        ])
-N = np.block([[np.identity(Ac.shape[0]),np.zeros((4,2))],
-             [np.zeros((2,4)),np.zeros((2,2))]])
+Ac,Bc,Ec,C,Cz = Model_Stochastic.LinearizeContinousTime(xs,d)
 
-zeros = eig(np.array([M,N]))[0][0]
-poles = eig(Ac)[0]
-print("Poles:",poles,"\nSystem stable:",np.all(poles<0))
-print("zeros:",zeros,"\nController stable:",np.all(zeros<0))
+pairs = [(1, 1), (2, 1), (2, 2), (1, 2)]
+Gains = pd.DataFrame(index=[1,2])
+Tau = pd.DataFrame(index=[1,2])
+Zeros = pd.DataFrame(index=[1,2])
+Poles = pd.DataFrame(index=[1,2])
 
+for pair in pairs:
+    input = pair[0]
+    output = pair[1]
 
+    Bc_SISO,Cz_SISO = SISO_system(Bc,Cz,input,output)
+    M, N = MN_matrix_SISO(Ac,Bc_SISO,Cz_SISO)
+    zeros, poles, stable_ctrl, stable_sys = compute_zeros_poles(M, N, Ac)
+    
+    if len(poles) > 1:
+        factor = poles[0]*poles[1]
+        pole_relevant = poles[1]
+    else:
+        factor = poles[0]
+        pole_relevant = poles[0]
+    
+    # Tau
+    TauN = len(np.array([1/np.real(factor)]))
+    zerospad = np.zeros(2-TauN)
+    Tau[f"{pair}"] = np.concatenate([np.array([1/np.real(pole_relevant)]),zerospad])
+    
+    # Gain 
+    GainN = len((G(0,Cz_SISO,Ac,Bc_SISO)/np.abs(factor))[0])
+    zerospad = np.zeros(2-GainN)
+    Gains[f"{pair}"] = np.concatenate([(G(0,Cz_SISO,Ac,Bc_SISO)/np.abs(factor)/np.abs(factor))[0],zerospad])
+    
+    # Zeros
+    ZerosN = len(np.real(zeros))
+    zerospad = np.zeros(2-ZerosN)
+    Zeros[f"{pair}"] = np.concatenate([np.real(zeros),zerospad])
+    
+    # Poles
+    PolesN = len(np.real(poles))
+    zerospad = np.zeros(2-PolesN)
+    Poles[f"{pair}"] = np.concatenate([np.real(poles),zerospad])
 
-
+print("Tau:\n ", Tau)
+print("Gain:\n ",Gains)
+print("Zeros:\n ",Zeros)
+print("Poles:\n ",Poles)
+print("G0: ",  G(0,Cz_SISO,Ac,Bc_SISO))
 
