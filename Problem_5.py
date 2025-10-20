@@ -79,7 +79,6 @@ x0, u, d, p , R_s, R_d, delta_t = initialize()
 Model_Stochastic = FourTankSystem(R_s*0, R_d*0, p, delta_t)
 x0 = np.concatenate((x0, np.zeros(2)))  
 xs = Model_Stochastic.GetSteadyState(x0, u)
-print(len(xs))
 
 Ac,Bc,Ec,C,Cz = Model_Stochastic.LinearizeContinousTime(xs,d)
 
@@ -99,13 +98,15 @@ for pair in pairs:
     
     if len(poles) > 1:
         factor = poles[0]*poles[1]
+        pole_relevant = poles[1]
     else:
         factor = poles[0]
+        pole_relevant = poles[0]
     
     # Tau
     TauN = len(np.array([1/np.real(factor)]))
     zerospad = np.zeros(2-TauN)
-    Tau[f"{pair}"] = np.concatenate([np.array([1/np.real(factor)]),zerospad])
+    Tau[f"{pair}"] = np.concatenate([np.array([1/np.real(pole_relevant)]),zerospad])
     
     # Gain 
     GainN = len((G(0,Cz_SISO,Ac,Bc_SISO)/np.abs(factor))[0])
@@ -127,16 +128,4 @@ print("Gain:\n ",Gains)
 print("Zeros:\n ",Zeros)
 print("Poles:\n ",Poles)
 print("G0: ",  G(0,Cz_SISO,Ac,Bc_SISO))
-
-test = False
-if test:
-    Bc_SISO,Cz_SISO = SISO_system(Bc,Cz,1,1)
-    M, N = MN_matrix_SISO(Ac,Bc_SISO,Cz_SISO)
-    zeros, poles, stable_ctrl, stable_sys = compute_zeros_poles(M, N, Ac)
-
-    print("Kp=", G(0,Cz_SISO,Ac,Bc_SISO)/0.01263919)
-    print("Poles:", poles)
-    print("System stable (cont.-time):", stable_sys)
-    print("Transmission zeros:", zeros)
-    print("Controller stable (zeros LHP):", stable_ctrl)
 
