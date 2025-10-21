@@ -129,7 +129,7 @@ for pair in pairs:
     # Gain 
     GainN = len((G(0,Cz_SISO,Ac,Bc_SISO)/np.abs(factor))[0])
     zerospad = np.zeros(2-GainN)
-    Gains[f"{pair}"] = np.concatenate([G(0,Cz_SISO,Ac,Bc_SISO)[0],zerospad])#*np.abs(factor)/np.abs(factor))[0]
+    Gains[f"{pair}"] = np.concatenate([G(0,Cz_SISO,Ac,Bc_SISO)[0],zerospad])
     
     # Zeros
     ZerosN = len(np.real(zeros))
