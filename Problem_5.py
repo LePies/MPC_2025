@@ -91,6 +91,41 @@ def markov_parameters(Ad, Bd, C, D=None, N=100):
     H = np.stack(H, axis=0) # convert list to array
     return H  
 
+def Hankel_matrix(markov_params, r, s):
+
+    n, p, m = markov_params.shape
+    print(n, p, m)
+    print((r*p, s*m))
+    H = np.zeros((r*p, s*m))
+
+    # Create Hankel matrix
+    for i in range(r):
+        for j in range(s):
+            H[i*p:(i+1)*p, j*m:(j+1)*m] = markov_params[i+j]
+
+    # Split Hankel matrix into past and future parts
+    #Hp = H[:p*r//2, :m*s//2]  # past
+    #Hf = H[p*r//2:, :m*s//2]  # future
+    Hp = H
+    # SVD decomposition
+    U, S, Vt = np.linalg.svd(Hp, full_matrices=False)
+    
+    # Determine system order from singular values 
+    n = np.sum(S > 1e-10)  # threshold for numerical stability  
+    
+    # Calculate observability and controllability matrices
+    Sigma_sqrt = np.diag(np.sqrt(S[:n]))
+    Or = U[:, :n] @ Sigma_sqrt  # observability matrix
+    Cr = Sigma_sqrt @ Vt[:n, :]  # controllability matrix
+    
+    # Extract A, B, C matrices
+    C = Or[:p, :]
+    A = np.linalg.pinv(Or[:-p, :]) @ Or[p:, :]
+    B = Cr[:, :m]
+
+    return H, A, B, C, S
+
+
 x0, u, d, p , R_s, R_d, delta_t = initialize()
 
 #%% Linearize continous time
@@ -151,7 +186,7 @@ Ts = 1
 Ad, Bd, C, Cz = Model_Stochastic.LinearizeDiscreteTime(xs, d, Ts)
 
 # Markov parameters 
-N = 100
+N = 20*60
 H = markov_parameters(Ad, Bd, Cz, D=np.zeros((Cz.shape[0], Bd.shape[1])), N=N)
 
 N, p, m = H.shape
@@ -165,7 +200,7 @@ for i in range(p):
     for j in range(m):
         hij = H[:, i, j]
         ax = axes[i, j]
-        ax.plot(time, hij)
+        ax.plot(time/60, hij)
         ax.set_title(f"y{i+1} \u2190 u{j+1}")
         ax.grid(True)
 
@@ -195,7 +230,7 @@ for i in range(p):
     for j in range(m):
         sij = S[:, i, j]
         ax = axes[i, j]
-        ax.plot(time, sij)
+        ax.plot(time/60, sij)
         ax.set_title(f"y{i+1} \u2190 u{j+1}")
         ax.grid(True)
 
@@ -214,3 +249,17 @@ for i in range(p):
 plt.tight_layout()
 plt.savefig(r"Figures\Problem5\Problem_5_Stepresponse.png")
 
+H_hankel, A_est, B_est, C_est, S_values = Hankel_matrix(H, 4, 4)
+
+plt.figure()
+plt.plot(S_values, 'o-')
+plt.yscale('log')
+plt.title("Hankel Matrix Structure")
+plt.savefig(r"Figures\Problem5\Problem_5_Hankel_Structure.png")
+# Create a dictionary with all estimated matrices
+estimates = {
+    "A": A_est,
+    "B": B_est,
+    "C": C_est
+}
+np.savez(r"Results\Problem5\Problem_5_estimates.npz", **estimates)

@@ -17,7 +17,7 @@ def solve_riccati(A:np.ndarray,R1:np.ndarray,R2:np.ndarray,C:np.ndarray) -> np.n
 
     return Ps
 
-def ordinary_kalman(xt:float,ut:float,yt:float,A:np.ndarray,B:np.ndarray,C:np.ndarray,P:np.ndarray,R1:np.ndarray,R2:np.ndarray,stationary:bool=True) -> float:
+def KalmanFilterUpdate(xt:float,ut:float,yt:float,A:np.ndarray,B:np.ndarray,C:np.ndarray,P:np.ndarray,R1:np.ndarray,R2:np.ndarray,stationary:bool=True) -> float:
 
     if stationary:
         P = solve_riccati(A,R1,R2,C)
