@@ -136,4 +136,4 @@ axes[3, 0].set_ylabel('Noise Level = 0.5\nNormalized Height [m]')
 plt.savefig(f'figures/Problem4/Problem_4_all.png')
 plt.close()
 
-df.to_csv('figures/Problem4/Problem_4_df.csv', index=False)
+df.to_csv('Results/Problem4/Problem_4_df.csv', index=False)
