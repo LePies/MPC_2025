@@ -264,12 +264,15 @@ for i in range(p):
 plt.tight_layout()
 plt.savefig(r"Figures\Problem5\Problem_5_Stepresponse.png")
 
-H_hankel, A_est, B_est, C_est, S_values = Hankel_matrix(H, 4, 4)
+H_hankel, A_est, B_est, C_est, S_values = Hankel_matrix(H, 25, 25)
 
 plt.figure()
-plt.plot(S_values, 'o-')
+plt.plot(S_values, marker='o',linestyle="--", markersize=4,color="black")
+plt.grid(True,alpha=0.3)
 plt.yscale('log')
-plt.title("Hankel Matrix Structure")
+plt.xlabel("Singular Value")
+plt.ylabel("Index")
+plt.title("Singular Values of Hankel Matrix")
 plt.savefig(r"Figures\Problem5\Problem_5_Hankel_Structure.png")
 # Create a dictionary with all estimated matrices
 estimates = {
