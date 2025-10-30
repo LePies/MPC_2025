@@ -158,6 +158,11 @@ for i in range(4):
     A.append(Ad)
     B.append(Bd)
 
+print(Ac[0])
+print(A[0])
+print(Bc[0])
+print(B[0])
+
 def H(i, j, k_arr):
     idx = i*2 + j
     res = []
