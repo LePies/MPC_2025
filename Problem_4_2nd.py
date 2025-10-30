@@ -25,7 +25,7 @@ xs = Model.GetSteadyState(np.array([0, 0, 0, 0]), np.array([250, 325]), np.array
 
 # noise level = 0.1, step = 0.5
 
-df = pd.read_csv('figures/Problem4/Problem_4_df.csv')
+df = pd.read_csv('Results/Problem4/Problem_4_df.csv')
 
 df = df[df['noise_level'] == 0.0]
 
@@ -158,6 +158,11 @@ for i in range(4):
     A.append(Ad)
     B.append(Bd)
 
+print(Ac[0])
+print(A[0])
+print(Bc[0])
+print(B[0])
+
 def H(i, j, k_arr):
     idx = i*2 + j
     res = []
@@ -177,7 +182,10 @@ fig, axes = plt.subplots(2, 2, figsize=(12, 12))
 for i in range(2):
     for j in range(2):
         axes[i, j].step(t_array/60, H(i, j, t_array))
-        axes[i, j].set_title(f'H_{i+1}{j+1}')
+        axes[i, j].set_title(rf'$H_{{{i+1}{j+1}}}$')
+        axes[i, j].grid(True, alpha=0.5)
+        axes[i, j].set_xlabel('Time [min]')
+        axes[i, j].set_ylabel('Markov parameters')
 plt.savefig(f'figures/Problem4/Problem_4_Markow.png')
 plt.show()
 
@@ -187,14 +195,22 @@ S_21 = np.cumsum(H(1, 0, t_array))
 S_22 = np.cumsum(H(1, 1, t_array))
 
 fig, axes = plt.subplots(2, 2, figsize=(12, 12))
-axes[0, 0].step(t_array/60, S_11, label="Step parameters")
-axes[0, 0].set_title('S_11')
-axes[0, 1].step(t_array/60, S_12, label="Step parameters")
-axes[0, 1].set_title('S_12')
-axes[1, 0].step(t_array/60, S_21, label="Step parameters")
-axes[1, 0].set_title('S_21')
-axes[1, 1].step(t_array/60, S_22, label="Step parameters")
-axes[1, 1].set_title('S_22')
+axes[0, 0].step(t_array/60, S_11, label="Step parameters", color='black', ls='--')
+axes[0, 0].set_title(r'$S_{11}$')
+axes[0, 0].set_xlabel('Time [min]')
+axes[0, 0].set_ylabel('Step response')
+axes[0, 1].step(t_array/60, S_12, label="Step parameters", color='black', ls='--')
+axes[0, 1].set_title(r'$S_{12}$')
+axes[0, 1].set_xlabel('Time [min]')
+axes[0, 1].set_ylabel('Step response')
+axes[1, 0].step(t_array/60, S_21, label="Step parameters", color='black', ls='--')
+axes[1, 0].set_title(r'$S_{21}$')
+axes[1, 0].set_xlabel('Time [min]')
+axes[1, 0].set_ylabel('Step response')
+axes[1, 1].step(t_array/60, S_22, label="Step parameters", color='black', ls='--')
+axes[1, 1].set_title(r'$S_{22}$')
+axes[1, 1].set_xlabel('Time [min]')
+axes[1, 1].set_ylabel('Step response')
 
 steps = [0.1, 0.25, 0.5]
 for step in steps:
@@ -218,13 +234,10 @@ for step in steps:
     axes[1, 0].plot(t/60, h_norm[0, :], label=f"Sim (step {step})")
     axes[1, 1].plot(t/60, h_norm[1, :], label=f"Sim (step {step})")
 # plt.savefig(f'figures/Problem4/Problem_4_Stepresponse.png')
-axes[0, 0].legend()
 axes[0, 0].grid(alpha = 0.25)
-axes[1, 0].legend()
 axes[1, 0].grid(alpha = 0.25)
-axes[0, 1].legend()
 axes[0, 1].grid(alpha = 0.25)
-axes[1, 1].legend()
+axes[1, 1].legend(loc='center right')
 axes[1, 1].grid(alpha = 0.25)
 plt.savefig(f'figures/Problem4/Problem_4_Stepresponse.png')
 plt.show()
@@ -317,4 +330,4 @@ data = {
     "D": D
 }
 
-np.savez("figures/Problem4/Problem_4_data.npz", **data)
+np.savez("Results/Problem4/Problem_4_estimates.npz", **data)
