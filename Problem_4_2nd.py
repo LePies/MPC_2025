@@ -187,7 +187,7 @@ for i in range(2):
         axes[i, j].set_xlabel('Time [min]')
         axes[i, j].set_ylabel('Markov parameters')
 plt.savefig(f'figures/Problem4/Problem_4_Markow.png')
-plt.show()
+plt.close()
 
 S_11 = np.cumsum(H(0, 0, t_array))
 S_12 = np.cumsum(H(0, 1, t_array))
@@ -240,7 +240,7 @@ axes[0, 1].grid(alpha = 0.25)
 axes[1, 1].legend(loc='center right')
 axes[1, 1].grid(alpha = 0.25)
 plt.savefig(f'figures/Problem4/Problem_4_Stepresponse.png')
-plt.show()
+plt.close()
 
 def Hankel_Matrix(p_rows=10, q_cols=10):
     """
@@ -279,24 +279,21 @@ def Hankel_Matrix(p_rows=10, q_cols=10):
 
 # Compute and display the Hankel matrix
 print("Computing Hankel Matrix...")
-H_hankel = Hankel_Matrix(p_rows=20, q_cols=20)
-H_hankel_test = Hankel_Matrix(p_rows=5, q_cols=5)
+H_hankel = Hankel_Matrix(p_rows=25, q_cols=25)
 # print(H_hankel)
 
 # Compute SVD of Hankel matrix for system order estimation
 K, S, Lt = np.linalg.svd(H_hankel)
-K_test, S_test, Lt_test = np.linalg.svd(H_hankel_test)
 
 # Plot singular values
 plt.figure(figsize=(10, 6))
-plt.semilogy(S[:], 'bo-')
-plt.semilogy(S_test[:], 'ro-')
+plt.semilogy(S[:], linestyle='--', color='black', marker='o', markersize=4)
 plt.xlabel('Index')
 plt.ylabel('Singular Value')
 plt.title('Singular Values of Hankel Matrix')
 plt.grid(True, alpha=0.3)
 plt.savefig('figures/Problem4/Problem_4_Hankel_SingularValues.png')
-plt.show()
+plt.close()
 
 # Estimate system order based on singular values
 # Look for a significant drop in singular values
@@ -329,5 +326,10 @@ data = {
     "C": C,
     "D": D
 }
+
+print(data["A"].shape)
+print(data["B"].shape)
+print(data["C"].shape)
+print(data["D"].shape)
 
 np.savez("Results/Problem4/Problem_4_estimates.npz", **data)
