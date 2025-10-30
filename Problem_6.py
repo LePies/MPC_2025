@@ -12,11 +12,11 @@ C_est = data["C"]
 Q = data["Q"]
 
 x0, ut, d, p , R, R_d, delta_t = initialize()
-Model_Stochastic = FourTankSystem(R_s=R*2, R_d=R_d*0, p=p, delta_t=delta_t)
+Model_Stochastic = FourTankSystem(R_s=R*0.1, R_d=R_d*0, p=p, delta_t=delta_t)
 
 P = np.eye(A_est.shape[0])  # Initial estimate error covariance 
 
-Tf = 100 
+Tf = 100
 N = int(Tf/delta_t)
 t = np.arange(0, Tf, delta_t)
 xt = np.concatenate((x0, d))  # Initial state with disturbances
@@ -45,8 +45,8 @@ for t_idx,_ in enumerate(t):
     # Simulate next true state  
     xt = Model_Stochastic.FullEquation(_, xt, ut)
 
-fig, ax = plt.subplots(4, 1, figsize=(12, 12))  # 4 states
-for i in range(2):
+fig, ax = plt.subplots(5, 1, figsize=(12, 12))  # 5 states
+for i in range(4):
     ax[i].plot(t, X_true[:, i],'--', label='True State', color="black")
     ax[i].plot(t, X[:, i], '*-', label='Kalman Estimate', color="red")
     ax[i].set_title(f'$x_{{{i+1},t}}$')
@@ -56,9 +56,9 @@ for i in range(2):
     ax[i].set_xlabel('')       # Optionally also remove x-axis label if set elsewhere
 
 
-ax[i+1].plot(t,U[:,0],label="control input $u_1$")
-ax[i+1].plot(t,U[:,1],label="control input $u_2$")
-ax[i+1].set_title(f'Control input')
+ax[i+1].plot(t,D[:,0],label="Disturbance input $u_1$")
+ax[i+1].plot(t,D[:,1],label="Disturbance input $u_2$")
+#ax[i+1].set_title(f'Control input')
 ax[i+1].legend()
 ax[i+1].grid(True)
 ax[i+1].set_xlabel('Time')
@@ -66,5 +66,6 @@ fig.suptitle("Open loop and state estimation using Kalman filter", fontsize=16)
 plt.tight_layout(rect=[0, 0.1, 1, 0.95])
 
 plt.figure()
-plt.plot(t,Y[:,0],label="measured output $y_1$")
+plt.plot(t,Y,label="measured output $y_1$")
 plt.show()
+
