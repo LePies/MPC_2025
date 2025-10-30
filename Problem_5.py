@@ -4,6 +4,7 @@ from scipy.linalg import eig
 from params.initialize import initialize
 import pandas as pd
 import matplotlib.pyplot as plt
+import scipy as sp
 
 def MN_matrix_SISO(A,B,C):
 
@@ -125,6 +126,19 @@ def Hankel_matrix(markov_params, r, s):
 
     return H, A, B, C, S
 
+def Q_matrix(Ac,Bc,Ts):
+    # Augment A and B for matrix exponential
+    n,m = Ac.shape
+    M = np.zeros((n + m, n + m))
+    M[:n, :n] = -Ac
+    M[:n, n:] = np.ones_like(Ac)
+    M[n:, n:] = Ac.T
+    Md = sp.linalg.expm(M * Ts)
+    phi11 = Md[:n, :n]
+    phi12 = Md[:n, n:]
+    phi22 = Md[n:, n:]
+    
+    return phi22.T @ phi12 
 
 x0, u, d, p , R_s, R_d, delta_t = initialize()
 
@@ -134,6 +148,7 @@ x0 = np.concatenate((x0, np.zeros(2)))
 xs = Model_Stochastic.GetSteadyState(x0, u)
 
 Ac,Bc,Ec,C,Cz = Model_Stochastic.LinearizeContinousTime(xs,d)
+Q = Q_matrix(Ac,Bc,delta_t)
 
 pairs = [(1, 1), (2, 1), (2, 2), (1, 2)]
 Gains = pd.DataFrame(index=[1,2])
@@ -249,17 +264,21 @@ for i in range(p):
 plt.tight_layout()
 plt.savefig(r"Figures\Problem5\Problem_5_Stepresponse.png")
 
-H_hankel, A_est, B_est, C_est, S_values = Hankel_matrix(H, 4, 4)
+H_hankel, A_est, B_est, C_est, S_values = Hankel_matrix(H, 25, 25)
 
 plt.figure()
-plt.plot(S_values, 'o-')
+plt.plot(S_values, marker='o',linestyle="--", markersize=4,color="black")
+plt.grid(True,alpha=0.3)
 plt.yscale('log')
-plt.title("Hankel Matrix Structure")
+plt.xlabel("Singular Value")
+plt.ylabel("Index")
+plt.title("Singular Values of Hankel Matrix")
 plt.savefig(r"Figures\Problem5\Problem_5_Hankel_Structure.png")
 # Create a dictionary with all estimated matrices
 estimates = {
     "A": A_est,
     "B": B_est,
-    "C": C_est
+    "C": C_est,
+    "Q": Q
 }
 np.savez(r"Results\Problem5\Problem_5_estimates.npz", **estimates)
