@@ -51,6 +51,8 @@ class FourTankSystem:
         d = states[4:]
         qin = np.array([self.gamma[0]*u[0],self.gamma[1]*u[1],(1-self.gamma[1])*u[1],(1-self.gamma[0])*u[0]])
         h = x/(self.rho*self.A)
+        if (2*self.g*h).any() < 0:
+            true = 2
         qout = self.a*np.sqrt(2*self.g*h)
         x1dot = self.rho*(qin[0]+qout[2]-qout[0])
         x2dot = self.rho*(qin[1]+qout[3]-qout[1])
@@ -130,7 +132,7 @@ class FourTankSystem:
             return steady_state[:4]
         else:
             return np.concatenate([steady_state,d])
-
+ 
     def OpenLoop(self, tspan, states, u, d = np.array([])):
         if np.size(tspan) != 2:
             raise ValueError("Wrong shape of tspan was given\ntspan must be a 2x1 array")
@@ -146,7 +148,7 @@ class FourTankSystem:
         states_array[:, 0] = states
 
         h_array = np.zeros([self.R_s.shape[0], t_array.shape[0]])
-        h_array[:, 0] = self.StateSensor(states_array[:4, 0])
+        h_array[:, 0] = self.StateSensor(states_array[:4, 0]) 
 
         f = self.StateEquation if is_deterministic else self.FullEquation
 

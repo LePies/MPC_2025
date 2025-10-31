@@ -24,7 +24,7 @@ def KalmanFilterUpdate(xt:float,ut:float,yt:float,wt:float,A:np.ndarray,B:np.nda
     if stationary:
         P = solve_riccati(A,Q,R,C)
     else:
-        P = A@(P-kappa@C@P)+Q
+        P = A@(P-kappa@C@P)@A.T+Q
 
     xtp1 = A@(xt+kappa@(yt-C@xt))+B@ut
 
