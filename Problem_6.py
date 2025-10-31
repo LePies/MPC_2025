@@ -37,7 +37,8 @@ W = np.random.multivariate_normal(mean=np.zeros(A_est.shape[0]), cov=Q, size=N)
 V = np.random.multivariate_normal(mean=np.zeros(R.shape[0]), cov=R, size=N)
 X_true = np.zeros([N, 4])  
 
-linear = False
+linear = True
+static = True
 
 for t_idx,_ in enumerate(t[:-1]):
 
@@ -50,7 +51,7 @@ for t_idx,_ in enumerate(t[:-1]):
         yt = Model_Stochastic.StateSensor(xt[:-2])
         zt = yt[:2]
 
-    xt_hat, P = KalmanFilterUpdate(xt, ut, zt, W[t_idx], A_est, B_est, C_est, P, Q, R[:2,:2], stationary=False)
+    xt_hat, P = KalmanFilterUpdate(xt, ut, zt, W[t_idx], A_est, B_est, C_est, P, Q, R[:2,:2], stationary=static)
     
     U[t_idx, :] = ut
     Z[t_idx, :] = zt        
