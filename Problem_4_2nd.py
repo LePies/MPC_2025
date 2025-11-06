@@ -286,7 +286,7 @@ H_hankel = Hankel_Matrix(p_rows=25, q_cols=25)
 K, S, Lt = np.linalg.svd(H_hankel)
 
 # Plot singular values
-plt.figure(figsize=(10, 6))
+plt.figure()
 plt.semilogy(S[:], linestyle='--', color='black', marker='o', markersize=4)
 plt.xlabel('Index')
 plt.ylabel('Singular Value')
@@ -297,7 +297,7 @@ plt.close()
 
 # Estimate system order based on singular values
 # Look for a significant drop in singular values
-threshold = 0.01  # 1% of the largest singular value
+threshold = 1e-17  # 1% of the largest singular value
 significant_singular_values = S[S > threshold * S[0]]
 estimated_order = len(significant_singular_values)
 
