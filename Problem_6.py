@@ -4,6 +4,7 @@ from params.initialize import initialize
 from src.FourTankSystem import FourTankSystem
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
+from src.FourTankSystem import FourTankSystem
 
 def discrete_state_update(A,B,xt,ut,wt):
     return A@xt + B@ut + wt
@@ -14,31 +15,56 @@ def discrete_output_update(C,xt,vt):
 np.random.seed(42)
 data_prob5 = np.load(r"Results\Problem5\Problem_5_estimates.npz")
 data_prob4 = np.load(r"Results\Problem4\Problem_4_estimates.npz")
-A_est = data_prob5["A"]
-B_est = data_prob5["B"]
-C_est = data_prob5["C"]
+
+prob = 4
+if prob == 4:
+    data = data_prob4
+else:   
+    data = data_prob5
+
+A_est = data["A"]
+B_est = data["B"]
+C_est = data["C"]
 Q = data_prob5["Q"]
+Ts = 1
 
 x0, ut, d, p , R, R_d, delta_t = initialize()
 Model_Stochastic = FourTankSystem(R_s=R*0.01, R_d=R_d*0, p=p, delta_t=delta_t)
+
+# Discrete Kalman filter parameters
+x0 = np.concatenate((x0, np.zeros(2)))  
+xs = Model_Stochastic.GetSteadyState(x0, ut)
+Ad, Bd, C, Cz = Model_Stochastic.LinearizeDiscreteTime(xs, d, Ts)
 
 P = 10*np.eye(A_est.shape[0])  # Initial estimate error covariance 
 
 Tf = 100
 N = int(Tf/delta_t)
 t = np.arange(0, Tf, delta_t)
-xt = np.concatenate((x0, d))  # Initial state with disturbances
+xt = x0.copy()
+xt_hat = x0.copy()
 
 X = np.zeros([N-1,4])
 Z = np.zeros([N-1,2])
 D = np.zeros([N-1,2])
 U = np.zeros([N-1,2])
+Z_est = np.zeros([N-1,2])
 W = np.random.multivariate_normal(mean=np.zeros(A_est.shape[0]), cov=Q, size=N)
 V = np.random.multivariate_normal(mean=np.zeros(R.shape[0]), cov=R, size=N)
 X_true = np.zeros([N, 4])  
 
-linear = False
+linear = True
 static = True
+Hankel = False
+
+if Hankel:
+    A_use = A_est
+    B_use = B_est
+    C_use = C_est
+else:
+    A_use = Ad
+    B_use = Bd
+    C_use = Cz
 
 for t_idx,_ in enumerate(t[:-1]):
 
@@ -46,21 +72,28 @@ for t_idx,_ in enumerate(t[:-1]):
     X_true[t_idx, :] = xt[:-2]
 
     if linear:
-        zt = discrete_output_update(C_est, xt, V[t_idx][:-2])
+        zt = discrete_output_update(C_use, xt, V[t_idx][:-2])
     else:
         yt = Model_Stochastic.StateSensor(xt[:-2])
         zt = yt[:2]
 
-    xt_hat, P = KalmanFilterUpdate(xt, ut, zt, W[t_idx], A_est, B_est, C_est, P, Q, R[:2,:2], stationary=static)
+    xt_hat, P = KalmanFilterUpdate(xt_hat, ut, zt, A_use, B_use, C_use, P, Q, R[:2,:2], stationary=static)
     
     U[t_idx, :] = ut
     Z[t_idx, :] = zt        
     X[t_idx, :] = xt_hat[:-2]
     D[t_idx, :] = xt_hat[-2:]
-    
+
+    # Estimate output based on estimated state 
+    if linear:
+        Z_est[t_idx, :] = discrete_output_update(C_use, xt_hat, V[t_idx][:-2])
+    else:
+        yt_est = Model_Stochastic.StateSensor(xt_hat[:-2])
+        Z_est[t_idx, :] = yt_est[:2]
+
     # Simulate next true state  
     if linear:
-        xt = discrete_state_update(A_est, B_est, xt, ut, W[t_idx])
+        xt = discrete_state_update(A_use, B_use, xt, ut, W[t_idx])
     else:
         f = Model_Stochastic.FullEquation
         xt = f(_, xt, ut)
@@ -82,12 +115,27 @@ ax[i].set_xlabel('Time')
 fig.suptitle("Open loop of the discrete time system\n State estimation using Kalman filter", fontsize=16)
 plt.tight_layout(rect=[0, 0.1, 1, 0.95])
 
+fig, ax = plt.subplots(2, 1, figsize=(12, 12))  
+for i in range(2):
+    ax[i].plot(t[:-1], Z[:, i],'--', label='True State', color="black")
+    ax[i].plot(t[:-1], Z_est[:, i], '*-', label='Kalman Estimate', color="red")
+    ax[i].set_title(f'$z_{{{i+1},t}}$')
+    ax[i].legend()
+    ax[i].grid(True)
+    ax[i].set_xticklabels([]) 
+    ax[i].set_xlabel('') 
+ax[i].legend()
+ax[i].grid(True)
+ax[i].set_xlabel('Time')     
+fig.suptitle("Open loop of the discrete time system\n State estimation using Kalman filter", fontsize=16)
+plt.tight_layout(rect=[0, 0.1, 1, 0.95])
+
 fig, ax = plt.subplots(2, 1, figsize=(12, 12)) 
-ax[0].plot(t[:-1],d[0]*np.ones(len(t[:-1])), label='$d_1$')
-ax[0].plot(t[:-1],d[1]*np.ones(len(t[:-1])), label='$d_2$')
+ax[0].plot(t[:-1],d[0]*np.ones(len(t[:-1])), label='$d_1 true$')
+ax[0].plot(t[:-1],d[1]*np.ones(len(t[:-1])), label='$d_2 true$')
 for i,VEC, label, title in zip(range(2),[D,U],["d","u"],["Disturbance Estimates","Control inputs"]):
-    ax[i].plot(t[:-1],VEC[:,0],label=f"{label}$_1$")
-    ax[i].plot(t[:-1],VEC[:,1],label=f"{label}$_2$")
+    ax[i].plot(t[:-1],VEC[:,0],'-*',label=f"{label}$_1$")
+    ax[i].plot(t[:-1],VEC[:,1],'-o',label=f"{label}$_2$")
     ax[i].set_title(title)
     ax[i].legend()
     ax[i].grid(True)
