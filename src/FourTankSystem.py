@@ -15,8 +15,8 @@ class FourTankSystem:
         sigma_f4 = 20,
         a_f3 = 1,
         a_f4 = 1,
-        F3 = 100,
-        F4 = 120
+        F3 = lambda t: 100,
+        F4 = lambda t: 120
     ):
         self.R_s = R_s
         self.R_d = R_d
@@ -76,7 +76,7 @@ class FourTankSystem:
         x = states[:4]
         d = states[4:]
         a = np.array([self.a_f3, self.a_f4])
-        F_bar = np.array([self.F3, self.F4])
+        F_bar = np.array([self.F3(t), self.F4(t)])
         sigma = np.array([self.sigma_f3, self.sigma_f4])
         dw = np.random.normal(0, self.delta_t,2)
         ddot = a*(F_bar - d) + sigma*dw
@@ -261,14 +261,14 @@ class FourTankSystem:
         C = np.hstack([C, np.zeros((C.shape[0], 2))])
         Cz = C[:2,:]
 
+        E = np.array([[0,0],[0,0],[0,0],[0,0],[self.a_f3,0],[0,self.a_f4]])
+
         G = np.array([[0,0],[0,0],[0,0],[0,0],[1,0],[0,1]])
         
-        return Ac,Bc,G,C,Cz
+        return Ac,Bc,E,G,C,Cz
 
-    def LinearizeDiscreteTime(self,xs,d,Ts):
 
-        Ac,Bc,G,C,Cz = self.LinearizeContinousTime(xs,d)
-
+    def MatrixExponential(self,Ac,Bc,Ts):
         # Augment A and B for matrix exponential
         n = Ac.shape[0]
         m = Bc.shape[1]
@@ -279,5 +279,14 @@ class FourTankSystem:
         Ad = Md[:n, :n]
         Bd = Md[:n, n:]
         
-        return Ad, Bd, C, Cz
+        return Ad,Bd 
+    
+    def LinearizeDiscreteTime(self,xs,d,Ts):
+
+        Ac,Bc,Ec,G,C,Cz = self.LinearizeContinousTime(xs,d)
+
+        Ad, Bd = self.MatrixExponential(Ac,Bc,Ts)
+        Ad, Ed = self.MatrixExponential(Ac,Ec,Ts)
+        
+        return Ad, Bd, Ed, C, Cz
 

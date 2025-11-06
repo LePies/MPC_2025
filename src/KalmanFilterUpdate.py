@@ -4,8 +4,6 @@ import matplotlib.pyplot as plt
 
 def solve_riccati(A,C,R,Q) -> np.ndarray:
 
-
-
     # Changing to scipy notation: 
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.solve_discrete_are.html
     
