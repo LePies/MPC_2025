@@ -37,7 +37,7 @@ W = np.random.multivariate_normal(mean=np.zeros(A_est.shape[0]), cov=Q, size=N)
 V = np.random.multivariate_normal(mean=np.zeros(R.shape[0]), cov=R, size=N)
 X_true = np.zeros([N, 4])  
 
-linear = True
+linear = False
 static = True
 
 for t_idx,_ in enumerate(t[:-1]):
@@ -82,7 +82,9 @@ ax[i].set_xlabel('Time')
 fig.suptitle("Open loop of the discrete time system\n State estimation using Kalman filter", fontsize=16)
 plt.tight_layout(rect=[0, 0.1, 1, 0.95])
 
-fig, ax = plt.subplots(2, 1, figsize=(12, 12))  
+fig, ax = plt.subplots(2, 1, figsize=(12, 12)) 
+ax[0].plot(t[:-1],d[0]*np.ones(len(t[:-1])), label='$d_1$')
+ax[0].plot(t[:-1],d[1]*np.ones(len(t[:-1])), label='$d_2$')
 for i,VEC, label, title in zip(range(2),[D,U],["d","u"],["Disturbance Estimates","Control inputs"]):
     ax[i].plot(t[:-1],VEC[:,0],label=f"{label}$_1$")
     ax[i].plot(t[:-1],VEC[:,1],label=f"{label}$_2$")
