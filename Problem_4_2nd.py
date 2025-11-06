@@ -297,7 +297,7 @@ plt.close()
 
 # Estimate system order based on singular values
 # Look for a significant drop in singular values
-threshold = 1e-17  # 1% of the largest singular value
+threshold = 1e-17/S[0]  # 1% of the largest singular value
 significant_singular_values = S[S > threshold * S[0]]
 estimated_order = len(significant_singular_values)
 
