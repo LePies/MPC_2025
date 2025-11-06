@@ -4,9 +4,10 @@ from params.initialize import initialize
 from src.FourTankSystem import FourTankSystem
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
+from src.FourTankSystem import FourTankSystem
 
-def discrete_state_update(A,B,xt,ut,wt):
-    return A@xt + B@ut + wt
+def discrete_state_update(A,B,E,xt,ut,dt,wt):
+    return A@xt + B@ut + E@dt + wt
 
 def discrete_output_update(C,xt,vt):
     return C@xt + vt
@@ -14,61 +15,116 @@ def discrete_output_update(C,xt,vt):
 np.random.seed(42)
 data_prob5 = np.load(r"Results\Problem5\Problem_5_estimates.npz")
 data_prob4 = np.load(r"Results\Problem4\Problem_4_estimates.npz")
-A_est = data_prob5["A"]
-B_est = data_prob5["B"]
-C_est = data_prob5["C"]
+
+prob = 5
+if prob == 4:
+    data = data_prob4
+elif prob == 5: 
+    data = data_prob5
+
+A_est = data["A"]
+B_est = data["B"]
+C_est = data["C"]
 Q = data_prob5["Q"]
 
-x0, ut, d, p , R, R_d, delta_t = initialize()
-Model_Stochastic = FourTankSystem(R_s=R*0.01, R_d=R_d*0, p=p, delta_t=delta_t)
+Ts = 1
+
+def F3_func(t):
+    if t < 50:
+        return 100
+    else:
+        return 50
+    
+def F4_func(t):
+    if t < 50:
+        return 120
+    else:
+        return 100
+
+x0, us, ds, p , R, R_d, delta_t = initialize()
+Model_Stochastic = FourTankSystem(R_s=R*0.01, R_d=R_d*0, p=p, delta_t=delta_t,F3=F3_func,F4=F4_func)
+
+# Discrete Kalman filter parameters 
+x0 = np.concatenate((x0, ds))  
+xs = Model_Stochastic.GetSteadyState(x0, us)
+Ad, Bd, Ed, C, Cz = Model_Stochastic.LinearizeDiscreteTime(xs, ds, Ts)
 
 P = 10*np.eye(A_est.shape[0])  # Initial estimate error covariance 
 
 Tf = 100
 N = int(Tf/delta_t)
 t = np.arange(0, Tf, delta_t)
-xt = np.concatenate((x0, d))  # Initial state with disturbances
+xt = x0.copy()-xs.copy()
+xt_hat = x0.copy()-xs.copy()
 
 X = np.zeros([N-1,4])
 Z = np.zeros([N-1,2])
 D = np.zeros([N-1,2])
 U = np.zeros([N-1,2])
+Z_est = np.zeros([N-1,2])
 W = np.random.multivariate_normal(mean=np.zeros(A_est.shape[0]), cov=Q, size=N)
 V = np.random.multivariate_normal(mean=np.zeros(R.shape[0]), cov=R, size=N)
 X_true = np.zeros([N, 4])  
 
 linear = True
 static = True
+Hankel = False
+disturbance_change = True
 
-for t_idx,_ in enumerate(t[:-1]):
+if disturbance_change:
+    d = np.ones([len(t),2])*ds
+    d[len(t)//2:] *= 0.1
+else:
+    d = np.ones([len(t),2])*ds
+
+if Hankel:
+    A_use = A_est
+    B_use = B_est
+    C_use = C_est
+else:
+    A_use = Ad
+    B_use = Bd
+    C_use = Cz
+    E_use = Ed
+
+for t_idx,t_val in enumerate(t[:-1]):
 
     # Save true state before simulating 
-    X_true[t_idx, :] = xt[:-2]
+    X_true[t_idx, :] = xt[:-2]+xs[:-2]
 
     if linear:
-        zt = discrete_output_update(C_est, xt, V[t_idx][:-2])
+        zt = discrete_output_update(C_use, xt, V[t_idx][:-2])
     else:
-        yt = Model_Stochastic.StateSensor(xt[:-2])
+        yt = Model_Stochastic.StateSensor(xt[:-2]+xs[:4])
         zt = yt[:2]
 
-    xt_hat, P = KalmanFilterUpdate(xt, ut, zt, W[t_idx], A_est, B_est, C_est, P, Q, R[:2,:2], stationary=static)
-    
-    U[t_idx, :] = ut
+    # Designed with linear system 
+    xt_hat, P = KalmanFilterUpdate(xt_hat, d[t_idx]-ds, us*0, zt, A_use, B_use, E_use, C_use, P, Q, R[:2,:2], stationary=static)
+
+    U[t_idx, :] = us
     Z[t_idx, :] = zt        
-    X[t_idx, :] = xt_hat[:-2]
-    D[t_idx, :] = xt_hat[-2:]
-    
+    X[t_idx, :] = xt_hat[:-2]+xs[:-2]
+    D[t_idx, :] = xt_hat[-2:]+xs[4:]
+
+    # Estimate output based on estimated state 
+    if linear:
+        Z_est[t_idx, :] = discrete_output_update(C_use, xt_hat, V[t_idx][:-2])
+    else:
+        yt_est = Model_Stochastic.StateSensor(xt_hat[:-2]+xs[:4])
+        Z_est[t_idx, :] = yt_est[:2]
+
     # Simulate next true state  
     if linear:
-        xt = discrete_state_update(A_est, B_est, xt, ut, W[t_idx])
+        xt = discrete_state_update(A_use, B_use, E_use, xt, us*0, d[t_idx]-ds, W[t_idx])
+
     else:
         f = Model_Stochastic.FullEquation
-        xt = f(_, xt, ut)
-        sol = solve_ivp(f, (t[t_idx], t[t_idx+1]), xt, method='RK45',args = (ut,))
-        xt = sol.y[:,-1]
+        xt = f(t_val, xt, us) 
+        sol = solve_ivp(f, (t[t_idx], t[t_idx+1]), xt, method='RK45',args = (us,))
+        xt = sol.y[:,-1]+xs
 
 fig, ax = plt.subplots(4, 1, figsize=(12, 12))  
-for i in range(4):
+for i in range(4): 
     ax[i].plot(t[:-1], X_true[:-1, i],'--', label='True State', color="black")
     ax[i].plot(t[:-1], X[:, i], '*-', label='Kalman Estimate', color="red")
     ax[i].set_title(f'$x_{{{i+1},t}}$')
@@ -83,9 +139,26 @@ fig.suptitle("Open loop of the discrete time system\n State estimation using Kal
 plt.tight_layout(rect=[0, 0.1, 1, 0.95])
 
 fig, ax = plt.subplots(2, 1, figsize=(12, 12))  
+for i in range(2):
+    ax[i].plot(t[:-1], Z[:, i],'--', label='True State', color="black")
+    ax[i].plot(t[:-1], Z_est[:, i], '*-', label='Kalman Estimate', color="red")
+    ax[i].set_title(f'$z_{{{i+1},t}}$')
+    ax[i].legend()
+    ax[i].grid(True)
+    ax[i].set_xticklabels([]) 
+    ax[i].set_xlabel('') 
+ax[i].legend()
+ax[i].grid(True)
+ax[i].set_xlabel('Time')     
+fig.suptitle("Open loop of the discrete time system\n State estimation using Kalman filter", fontsize=16)
+plt.tight_layout(rect=[0, 0.1, 1, 0.95])
+
+fig, ax = plt.subplots(2, 1, figsize=(12, 12)) 
+ax[0].plot(t[:-1],d[:-1,0]*np.ones(len(t[:-1])), label='$d_1 true$')
+ax[0].plot(t[:-1],d[:-1,1]*np.ones(len(t[:-1])), label='$d_2 true$')
 for i,VEC, label, title in zip(range(2),[D,U],["d","u"],["Disturbance Estimates","Control inputs"]):
-    ax[i].plot(t[:-1],VEC[:,0],label=f"{label}$_1$")
-    ax[i].plot(t[:-1],VEC[:,1],label=f"{label}$_2$")
+    ax[i].plot(t[:-1],VEC[:,0],'--',label=f"{label}$_1$")
+    ax[i].plot(t[:-1],VEC[:,1],'--',label=f"{label}$_2$")
     ax[i].set_title(title)
     ax[i].legend()
     ax[i].grid(True)

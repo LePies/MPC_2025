@@ -141,7 +141,7 @@ def Q_matrix(Ac,Bc,Ts):
     return phi22.T @ phi12 
 
 x0, u, d, p , R_s, R_d, delta_t = initialize()
-
+ 
 #%% Linearize continous time
 Model_Stochastic = FourTankSystem(R_s*0, R_d*0, p, delta_t)
 x0 = np.concatenate((x0, np.zeros(2)))  
