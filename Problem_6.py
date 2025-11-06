@@ -28,8 +28,21 @@ C_est = data["C"]
 Q = data_prob5["Q"]
 
 Ts = 1
+
+def F3_func(t):
+    if t < 50:
+        return 100
+    else:
+        return 50
+    
+def F4_func(t):
+    if t < 50:
+        return 120
+    else:
+        return 100
+
 x0, us, ds, p , R, R_d, delta_t = initialize()
-Model_Stochastic = FourTankSystem(R_s=R*0.01, R_d=R_d*0, p=p, delta_t=delta_t)
+Model_Stochastic = FourTankSystem(R_s=R*0.01, R_d=R_d*0, p=p, delta_t=delta_t,F3=F3_func,F4=F4_func)
 
 # Discrete Kalman filter parameters 
 x0 = np.concatenate((x0, ds))  
@@ -74,7 +87,7 @@ else:
     C_use = Cz
     E_use = Ed
 
-for t_idx,_ in enumerate(t[:-1]):
+for t_idx,t_val in enumerate(t[:-1]):
 
     # Save true state before simulating 
     X_true[t_idx, :] = xt[:-2]+xs[:-2]
@@ -86,7 +99,7 @@ for t_idx,_ in enumerate(t[:-1]):
         zt = yt[:2]
 
     # Designed with linear system 
-    xt_hat, P = KalmanFilterUpdate(xt_hat, us*0, zt, A_use, B_use, C_use, P, Q, R[:2,:2], stationary=static)
+    xt_hat, P = KalmanFilterUpdate(xt_hat, d[t_idx]-ds, us*0, zt, A_use, B_use, E_use, C_use, P, Q, R[:2,:2], stationary=static)
 
     U[t_idx, :] = us
     Z[t_idx, :] = zt        
@@ -106,7 +119,7 @@ for t_idx,_ in enumerate(t[:-1]):
 
     else:
         f = Model_Stochastic.FullEquation
-        xt = f(_, xt, us) 
+        xt = f(t_val, xt, us) 
         sol = solve_ivp(f, (t[t_idx], t[t_idx+1]), xt, method='RK45',args = (us,))
         xt = sol.y[:,-1]+xs
 

@@ -14,7 +14,7 @@ def solve_riccati(A,C,R,Q) -> np.ndarray:
 
     return Ps
 
-def KalmanFilterUpdate(xt:float,ut:float,yt:float,A:np.ndarray,B:np.ndarray,C:np.ndarray,P:np.ndarray,Q:np.ndarray,R:np.ndarray,stationary:bool=True) -> float:
+def KalmanFilterUpdate(xt:float,dt:float, ut:float,yt:float,A:np.ndarray,B:np.ndarray,E:np.ndarray,C:np.ndarray,P:np.ndarray,Q:np.ndarray,R:np.ndarray,stationary:bool=True) -> float:
 
     kappa = P@C.T@np.linalg.inv(C@P@C.T + R)
 
@@ -23,7 +23,7 @@ def KalmanFilterUpdate(xt:float,ut:float,yt:float,A:np.ndarray,B:np.ndarray,C:np
     else:
         P = A@(P-kappa@C@P)@A.T+Q
 
-    xtp1 = A@(xt+kappa@(yt-C@xt))+B@ut
+    xtp1 = A@(xt+kappa@(yt-C@xt))+B@ut+E@dt
 
     return xtp1,P
 
