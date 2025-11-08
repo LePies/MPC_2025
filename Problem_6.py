@@ -53,7 +53,7 @@ Ad, Bd, Ed, C, Cz = Model_Stochastic.LinearizeDiscreteTime(xs, ds, Ts)
 
 P = 5*np.eye(A_est.shape[0])  # Initial estimate error covariance 
 
-Tf = 100
+Tf = 500
 N = int(Tf/delta_t)
 t = np.arange(0, Tf, delta_t)
 xt = x0.copy()-xs.copy()
@@ -91,7 +91,7 @@ else:
 
 for t_idx,t_val in enumerate(t[:-1]): 
 
-    # Save true state before simulating    
+    # Save true state before simulating     
     X_true[t_idx, :] = xt[:-2] + xs[:-2] 
 
     if linear:
@@ -105,17 +105,17 @@ for t_idx,t_val in enumerate(t[:-1]):
     xt_hat, P = KalmanFilterUpdate(xt_hat, d[t_idx]-ds, us*0, zt, A_use, B_use, E_use, C_use, P, Q, R[:2,:2], stationary=static)
 
     U[t_idx, :] = us
-    Z[t_idx, :] = zt    
+    Z[t_idx, :] = zt + xs[:2]   
     X[t_idx, :] = xt_hat[:-2] + xs[:-2]
     D[t_idx, :] = xt_hat[-2:] + xs[4:]
 
     # Estimate output based on estimated state 
     if linear:
         yt_est = discrete_output_update(C_use, xt_hat, V[t_idx][:-2])
-        Z_est[t_idx, :] = yt_est[:2]
+        Z_est[t_idx, :] = yt_est[:2] + xs[:2]
     else:
         yt_est = Model_Stochastic.StateSensor(xt_hat[:4])#+xs[:4]) # Her
-        Z_est[t_idx, :] = yt_est[:2]
+        Z_est[t_idx, :] = yt_est[:2] + xs[:2]
 
     # Simulate next true state  
     if linear:
@@ -123,7 +123,7 @@ for t_idx,t_val in enumerate(t[:-1]):
 
     else:
         f = Model_Stochastic.FullEquation
-        sol = solve_ivp(f, (t_idx, t_idx+delta_t), xt+xs, method='RK45',args = (us,))
+        sol = solve_ivp(f, (t_val, t_val+delta_t), xt+xs, method='RK45',args = (us,))
         xt = sol.y[:,-1]-xs
 
 fig, ax = plt.subplots(4, 1, figsize=(12, 12))  
@@ -143,8 +143,8 @@ plt.tight_layout(rect=[0, 0.1, 1, 0.95])
 
 fig, ax = plt.subplots(2, 1, figsize=(12, 12))  
 for i in range(2):
-    ax[i].plot(t[:-1], Z[:, i],'--', label='True State', color="black")
-    ax[i].plot(t[:-1], Z_est[:, i], '*-', label='Kalman Estimate', color="red")
+    ax[i].plot(t[:-1], Z[:, i]/100,'--', label='True State', color="black")
+    ax[i].plot(t[:-1], Z_est[:, i]/100, '*-', label='Kalman Estimate', color="red")
     ax[i].set_title(f'$z_{{{i+1},t}}$')
     ax[i].legend()
     ax[i].grid(True)
