@@ -30,19 +30,21 @@ Q = data_prob5["Q"]
 Ts = 1
 
 def F3_func(t):
-    if t < 50:
+    if t < -50:
         return 100
     else:
         return 50
+    return 100
     
 def F4_func(t):
-    if t < 50:
+    if t < -50:
         return 120
     else:
         return 100
+    return 120
 
 x0, us, ds, p , R, R_d, delta_t = initialize()
-Model_Stochastic = FourTankSystem(R_s=R*0.01, R_d=R_d*0, p=p, delta_t=delta_t,F3=F3_func,F4=F4_func)
+Model_Stochastic = FourTankSystem(R_s=R, R_d=R_d*0, p=p, delta_t=delta_t,F3=F3_func,F4=F4_func)
 
 # Discrete Kalman filter parameters 
 x0 = np.concatenate((x0, ds))  
@@ -66,14 +68,14 @@ W = np.random.multivariate_normal(mean=np.zeros(A_est.shape[0]), cov=Q, size=N)
 V = np.random.multivariate_normal(mean=np.zeros(R.shape[0]), cov=R, size=N)
 X_true = np.zeros([N, 4])  
 
-linear = True
-static = True
-Hankel = False
-disturbance_change = True
+linear = 0
+static = 1
+Hankel = 0
+disturbance_change = 1
 
 if disturbance_change:
     d = np.ones([len(t),2])*ds
-    d[len(t)//2:] *= 0.1
+    d[len(t)//2:] = np.array([50,100])
 else:
     d = np.ones([len(t),2])*ds
 
@@ -102,26 +104,26 @@ for t_idx,t_val in enumerate(t[:-1]):
     xt_hat, P = KalmanFilterUpdate(xt_hat, d[t_idx]-ds, us*0, zt, A_use, B_use, E_use, C_use, P, Q, R[:2,:2], stationary=static)
 
     U[t_idx, :] = us
-    Z[t_idx, :] = zt        
-    X[t_idx, :] = xt_hat[:-2]+xs[:-2]
-    D[t_idx, :] = xt_hat[-2:]+xs[4:]
+    Z[t_idx, :] = zt      
+    X[t_idx, :] = xt_hat[:-2] + xs[:-2]
+    D[t_idx, :] = xt_hat[-2:] + xs[4:]
 
     # Estimate output based on estimated state 
     if linear:
-        Z_est[t_idx, :] = discrete_output_update(C_use, xt_hat, V[t_idx][:-2])
+        yt_est = discrete_output_update(C_use, xt_hat, V[t_idx][:-2])
+        Z_est[t_idx, :] = yt_est[:2]
     else:
         yt_est = Model_Stochastic.StateSensor(xt_hat[:-2]+xs[:4])
         Z_est[t_idx, :] = yt_est[:2]
 
     # Simulate next true state  
     if linear:
-        xt = discrete_state_update(A_use, B_use, E_use, xt, us*0, d[t_idx]-ds, W[t_idx])
+        xt = discrete_state_update(A_use, B_use, E_use, xt, us-us, d[t_idx]-ds, W[t_idx])
 
     else:
         f = Model_Stochastic.FullEquation
-        xt = f(t_val, xt, us) 
-        sol = solve_ivp(f, (t[t_idx], t[t_idx+1]), xt, method='RK45',args = (us,))
-        xt = sol.y[:,-1]+xs
+        sol = solve_ivp(f, (t[t_idx], t[t_idx]+delta_t), xt+xs, method='RK45',args = (us,))
+        xt = sol.y[:,-1]-xs
 
 fig, ax = plt.subplots(4, 1, figsize=(12, 12))  
 for i in range(4): 
@@ -130,7 +132,7 @@ for i in range(4):
     ax[i].set_title(f'$x_{{{i+1},t}}$')
     ax[i].legend()
     ax[i].grid(True)
-    ax[i].set_xticklabels([]) 
+    #ax[i].set_xticklabels([]) 
     ax[i].set_xlabel('') 
 ax[i].legend()
 ax[i].grid(True)
