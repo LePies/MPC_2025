@@ -40,7 +40,7 @@ def F4_func(t):
     if t < -50:
         return 120
     else:
-        return 100
+        return 50
     return 120
 
 x0, us, ds, p , R, R_d, delta_t = initialize()
@@ -51,7 +51,7 @@ x0 = np.concatenate((x0, ds))
 xs = Model_Stochastic.GetSteadyState(x0, us)
 Ad, Bd, Ed, C, Cz = Model_Stochastic.LinearizeDiscreteTime(xs, ds, Ts)
 
-P = 10*np.eye(A_est.shape[0])  # Initial estimate error covariance 
+P = 5*np.eye(A_est.shape[0])  # Initial estimate error covariance 
 
 Tf = 100
 N = int(Tf/delta_t)
@@ -75,7 +75,7 @@ disturbance_change = 1
 
 if disturbance_change:
     d = np.ones([len(t),2])*ds
-    d[len(t)//2:] = np.array([50,100])
+    d[len(t)//2:] = np.array([50,50])
 else:
     d = np.ones([len(t),2])*ds
 
@@ -89,22 +89,23 @@ else:
     C_use = Cz
     E_use = Ed
 
-for t_idx,t_val in enumerate(t[:-1]):
+for t_idx,t_val in enumerate(t[:-1]): 
 
-    # Save true state before simulating 
-    X_true[t_idx, :] = xt[:-2]+xs[:-2]
+    # Save true state before simulating    
+    X_true[t_idx, :] = xt[:-2] + xs[:-2] 
 
     if linear:
-        zt = discrete_output_update(C_use, xt, V[t_idx][:-2])
+        zt = discrete_output_update(C_use, xt, V[t_idx][:-2]) 
+        
     else:
-        yt = Model_Stochastic.StateSensor(xt[:-2]+xs[:4])
+        yt = Model_Stochastic.StateSensor(xt[:4])#+xs[:4]) # Her
         zt = yt[:2]
 
     # Designed with linear system 
     xt_hat, P = KalmanFilterUpdate(xt_hat, d[t_idx]-ds, us*0, zt, A_use, B_use, E_use, C_use, P, Q, R[:2,:2], stationary=static)
 
     U[t_idx, :] = us
-    Z[t_idx, :] = zt      
+    Z[t_idx, :] = zt    
     X[t_idx, :] = xt_hat[:-2] + xs[:-2]
     D[t_idx, :] = xt_hat[-2:] + xs[4:]
 
@@ -113,7 +114,7 @@ for t_idx,t_val in enumerate(t[:-1]):
         yt_est = discrete_output_update(C_use, xt_hat, V[t_idx][:-2])
         Z_est[t_idx, :] = yt_est[:2]
     else:
-        yt_est = Model_Stochastic.StateSensor(xt_hat[:-2]+xs[:4])
+        yt_est = Model_Stochastic.StateSensor(xt_hat[:4])#+xs[:4]) # Her
         Z_est[t_idx, :] = yt_est[:2]
 
     # Simulate next true state  
@@ -122,7 +123,7 @@ for t_idx,t_val in enumerate(t[:-1]):
 
     else:
         f = Model_Stochastic.FullEquation
-        sol = solve_ivp(f, (t[t_idx], t[t_idx]+delta_t), xt+xs, method='RK45',args = (us,))
+        sol = solve_ivp(f, (t_idx, t_idx+delta_t), xt+xs, method='RK45',args = (us,))
         xt = sol.y[:,-1]-xs
 
 fig, ax = plt.subplots(4, 1, figsize=(12, 12))  
