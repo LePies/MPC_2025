@@ -301,7 +301,7 @@ threshold = 1e-17  # 1% of the largest singular value
 significant_singular_values = S[S > threshold * S[0]]
 estimated_order = len(significant_singular_values)
 
-N = estimated_order
+N = 6
 
 S_sqrt = np.diag(np.sqrt(S[:N]))
 
