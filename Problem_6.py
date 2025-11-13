@@ -30,28 +30,30 @@ Q = data_prob5["Q"]
 Ts = 1
 
 def F3_func(t):
-    if t < 50:
+    if t < -50:
         return 100
     else:
         return 50
+    return 100
     
 def F4_func(t):
-    if t < 50:
+    if t < -50:
         return 120
     else:
-        return 100
+        return 50
+    return 120
 
 x0, us, ds, p , R, R_d, delta_t = initialize()
-Model_Stochastic = FourTankSystem(R_s=R*0.01, R_d=R_d*0, p=p, delta_t=delta_t,F3=F3_func,F4=F4_func)
+Model_Stochastic = FourTankSystem(R_s=R, R_d=R_d*0, p=p, delta_t=delta_t,F3=F3_func,F4=F4_func)
 
 # Discrete Kalman filter parameters 
 x0 = np.concatenate((x0, ds))  
 xs = Model_Stochastic.GetSteadyState(x0, us)
 Ad, Bd, Ed, C, Cz = Model_Stochastic.LinearizeDiscreteTime(xs, ds, Ts)
 
-P = 10*np.eye(A_est.shape[0])  # Initial estimate error covariance 
+P = 5*np.eye(A_est.shape[0])  # Initial estimate error covariance 
 
-Tf = 100
+Tf = 500
 N = int(Tf/delta_t)
 t = np.arange(0, Tf, delta_t)
 xt = x0.copy()-xs.copy()
@@ -66,14 +68,14 @@ W = np.random.multivariate_normal(mean=np.zeros(A_est.shape[0]), cov=Q, size=N)
 V = np.random.multivariate_normal(mean=np.zeros(R.shape[0]), cov=R, size=N)
 X_true = np.zeros([N, 4])  
 
-linear = True
-static = True
-Hankel = False
-disturbance_change = True
+linear = 0
+static = 1
+Hankel = 0
+disturbance_change = 1
 
 if disturbance_change:
     d = np.ones([len(t),2])*ds
-    d[len(t)//2:] *= 0.1
+    d[len(t)//2:] = np.array([50,50])
 else:
     d = np.ones([len(t),2])*ds
 
@@ -87,41 +89,42 @@ else:
     C_use = Cz
     E_use = Ed
 
-for t_idx,t_val in enumerate(t[:-1]):
+for t_idx,t_val in enumerate(t[:-1]): 
 
-    # Save true state before simulating 
-    X_true[t_idx, :] = xt[:-2]+xs[:-2]
+    # Save true state before simulating     
+    X_true[t_idx, :] = xt[:-2] + xs[:-2] 
 
     if linear:
-        zt = discrete_output_update(C_use, xt, V[t_idx][:-2])
+        zt = discrete_output_update(C_use, xt, V[t_idx][:-2]) 
+        
     else:
-        yt = Model_Stochastic.StateSensor(xt[:-2]+xs[:4])
+        yt = Model_Stochastic.StateSensor(xt[:4])#+xs[:4]) # Her
         zt = yt[:2]
 
     # Designed with linear system 
     xt_hat, P = KalmanFilterUpdate(xt_hat, d[t_idx]-ds, us*0, zt, A_use, B_use, E_use, C_use, P, Q, R[:2,:2], stationary=static)
 
     U[t_idx, :] = us
-    Z[t_idx, :] = zt        
-    X[t_idx, :] = xt_hat[:-2]+xs[:-2]
-    D[t_idx, :] = xt_hat[-2:]+xs[4:]
+    Z[t_idx, :] = zt + xs[:2]   
+    X[t_idx, :] = xt_hat[:-2] + xs[:-2]
+    D[t_idx, :] = xt_hat[-2:] + xs[4:]
 
     # Estimate output based on estimated state 
     if linear:
-        Z_est[t_idx, :] = discrete_output_update(C_use, xt_hat, V[t_idx][:-2])
+        yt_est = discrete_output_update(C_use, xt_hat, V[t_idx][:-2])
+        Z_est[t_idx, :] = yt_est[:2] + xs[:2]
     else:
-        yt_est = Model_Stochastic.StateSensor(xt_hat[:-2]+xs[:4])
-        Z_est[t_idx, :] = yt_est[:2]
+        yt_est = Model_Stochastic.StateSensor(xt_hat[:4])#+xs[:4]) # Her
+        Z_est[t_idx, :] = yt_est[:2] + xs[:2]
 
     # Simulate next true state  
     if linear:
-        xt = discrete_state_update(A_use, B_use, E_use, xt, us*0, d[t_idx]-ds, W[t_idx])
+        xt = discrete_state_update(A_use, B_use, E_use, xt, us-us, d[t_idx]-ds, W[t_idx])
 
     else:
         f = Model_Stochastic.FullEquation
-        xt = f(t_val, xt, us) 
-        sol = solve_ivp(f, (t[t_idx], t[t_idx+1]), xt, method='RK45',args = (us,))
-        xt = sol.y[:,-1]+xs
+        sol = solve_ivp(f, (t_val, t_val+delta_t), xt+xs, method='RK45',args = (us,))
+        xt = sol.y[:,-1]-xs
 
 fig, ax = plt.subplots(4, 1, figsize=(12, 12))  
 for i in range(4): 
@@ -130,7 +133,7 @@ for i in range(4):
     ax[i].set_title(f'$x_{{{i+1},t}}$')
     ax[i].legend()
     ax[i].grid(True)
-    ax[i].set_xticklabels([]) 
+    #ax[i].set_xticklabels([]) 
     ax[i].set_xlabel('') 
 ax[i].legend()
 ax[i].grid(True)
@@ -140,8 +143,8 @@ plt.tight_layout(rect=[0, 0.1, 1, 0.95])
 
 fig, ax = plt.subplots(2, 1, figsize=(12, 12))  
 for i in range(2):
-    ax[i].plot(t[:-1], Z[:, i],'--', label='True State', color="black")
-    ax[i].plot(t[:-1], Z_est[:, i], '*-', label='Kalman Estimate', color="red")
+    ax[i].plot(t[:-1], Z[:, i]/100,'--', label='True State', color="black")
+    ax[i].plot(t[:-1], Z_est[:, i]/100, '*-', label='Kalman Estimate', color="red")
     ax[i].set_title(f'$z_{{{i+1},t}}$')
     ax[i].legend()
     ax[i].grid(True)
