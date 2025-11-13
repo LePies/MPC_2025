@@ -176,6 +176,20 @@ def H(i, j, k_arr):
             A_pow = A_pow @ Ad
     return np.array(res)
 
+def get_markov_mat(k):
+    return np.array([
+        [H(0, 0, [k])[0][0], H(0, 1, [k])[0][0]],
+        [H(1, 0, [k])[0][0], H(1, 1, [k])[0][0]]
+    ])
+
+
+N = 20*60
+k_array = np.arange(0, N)
+
+markov_mat = np.zeros((2, 2, N))
+for k in k_array:
+    markov_mat[:, :, k] = get_markov_mat(k)
+
 t_array = np.arange(0,T_end)
 
 fig, axes = plt.subplots(2, 2, figsize=(12, 12))
@@ -307,9 +321,9 @@ S_sqrt = np.diag(np.sqrt(S[:N]))
 
 
 Oo = K[:, :N]@S_sqrt
-Cc = S_sqrt@Lt[:N, :]
+Co = S_sqrt@Lt[:N, :]
 
-B = Cc[:,:2]
+B = Co[:,:2]
 C = Oo[:2, :]
 A = np.linalg.inv(S_sqrt)@K[:, :N].T@H_hankel@Lt[:N, :].T@np.linalg.inv(S_sqrt)
 A_test = np.linalg.pinv(Oo) @ Oo
@@ -324,12 +338,14 @@ data = {
     "A": A,
     "B": B,
     "C": C,
-    "D": D
+    "D": D,
+    "markov_mat": markov_mat
 }
 
 print(data["A"].shape)
 print(data["B"].shape)
 print(data["C"].shape)
 print(data["D"].shape)
+print(data["markov_mat"].shape)
 
 np.savez("Results/Problem4/Problem_4_estimates.npz", **data)
