@@ -68,7 +68,7 @@ W = np.random.multivariate_normal(mean=np.zeros(A_est.shape[0]), cov=Q, size=N)
 V = np.random.multivariate_normal(mean=np.zeros(R.shape[0]), cov=R, size=N)
 X_true = np.zeros([N, 4])  
 
-linear = 0
+linear = 1
 static = 1
 Hankel = 0
 disturbance_change = 1

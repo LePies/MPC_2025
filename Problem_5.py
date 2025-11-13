@@ -99,14 +99,14 @@ def Hankel_matrix(markov_params, r, s):
     print((r*p, s*m))
     H = np.zeros((r*p, s*m))
 
-    # Create Hankel matrix
+    # Create Hankel matrix 
     for i in range(r):
         for j in range(s):
             H[i*p:(i+1)*p, j*m:(j+1)*m] = markov_params[i+j]
 
     # Split Hankel matrix into past and future parts
     #Hp = H[:p*r//2, :m*s//2]  # past
-    #Hf = H[p*r//2:, :m*s//2]  # future
+    #Hf = H[p*r//2:, :m*s//2]  # future 
     Hp = H
     # SVD decomposition
     U, S, Vt = np.linalg.svd(Hp, full_matrices=False)
@@ -147,7 +147,7 @@ Model_Stochastic = FourTankSystem(R_s*0, R_d*0, p, delta_t)
 x0 = np.concatenate((x0, np.zeros(2)))  
 xs = Model_Stochastic.GetSteadyState(x0, u)
 
-Ac,Bc,Ec,C,Cz = Model_Stochastic.LinearizeContinousTime(xs,d)
+Ac,Bc,Ec,_,C,Cz = Model_Stochastic.LinearizeContinousTime(xs,d)
 Q = Q_matrix(Ac,Bc,delta_t)
 
 pairs = [(1, 1), (2, 1), (2, 2), (1, 2)]
@@ -198,7 +198,7 @@ Poles.to_csv(r"Results\Problem5\Poles.txt", sep='\t', index=True)
 
 #%% Linearize Discrete time 
 Ts = 1
-Ad, Bd, C, Cz = Model_Stochastic.LinearizeDiscreteTime(xs, d, Ts)
+Ad, Bd, Ed, C, Cz = Model_Stochastic.LinearizeDiscreteTime(xs, d, Ts)
 
 # Markov parameters 
 N = 20*60
@@ -264,7 +264,7 @@ for i in range(p):
 plt.tight_layout()
 plt.savefig(r"Figures\Problem5\Problem_5_Stepresponse.png")
 
-H_hankel, A_est, B_est, C_est, S_values = Hankel_matrix(H, 25, 25)
+H_hankel, A_est, B_est, C_est, S_values = Hankel_matrix(H, 5, 5)
 
 plt.figure()
 plt.plot(S_values, marker='o',linestyle="--", markersize=4,color="black")
@@ -275,10 +275,12 @@ plt.ylabel("Index")
 plt.title("Singular Values of Hankel Matrix")
 plt.savefig(r"Figures\Problem5\Problem_5_Hankel_Structure.png")
 # Create a dictionary with all estimated matrices
+
 estimates = {
     "A": A_est,
     "B": B_est,
     "C": C_est,
-    "Q": Q
+    "Q": Q,
+    "Hankel":H_hankel
 }
 np.savez(r"Results\Problem5\Problem_5_estimates.npz", **estimates)
