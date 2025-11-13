@@ -30,14 +30,14 @@ Q = data_prob5["Q"]
 Ts = 1
 
 def F3_func(t):
-    if t < -50:
+    if t < 250:
         return 100
     else:
         return 50
     return 100
     
 def F4_func(t):
-    if t < -50:
+    if t < 250:
         return 120
     else:
         return 50
@@ -68,7 +68,7 @@ W = np.random.multivariate_normal(mean=np.zeros(A_est.shape[0]), cov=Q, size=N)
 V = np.random.multivariate_normal(mean=np.zeros(R.shape[0]), cov=R, size=N)
 X_true = np.zeros([N, 4])  
 
-linear = 1
+linear = 0
 static = 1
 Hankel = 0
 disturbance_change = 1
