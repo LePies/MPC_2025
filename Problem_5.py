@@ -90,7 +90,8 @@ def markov_parameters(Ad, Bd, C, D=None, N=100):
         A_pow = Ad @ A_pow
 
     H = np.stack(H, axis=0) # convert list to array
-    return H  
+    return H
+
 
 def Hankel_matrix(markov_params, r, s):
 
@@ -149,6 +150,7 @@ xs = Model_Stochastic.GetSteadyState(x0, u)
 
 Ac,Bc,Ec,_,C,Cz = Model_Stochastic.LinearizeContinousTime(xs,d)
 Q = Q_matrix(Ac,Bc,delta_t)
+
 
 pairs = [(1, 1), (2, 1), (2, 2), (1, 2)]
 Gains = pd.DataFrame(index=[1,2])
@@ -276,11 +278,20 @@ plt.title("Singular Values of Hankel Matrix")
 plt.savefig(r"Figures\Problem5\Problem_5_Hankel_Structure.png")
 # Create a dictionary with all estimated matrices
 
+
+markov_mat = np.zeros((2, 2, N))
+for i in range(N):
+    markov_mat[:, :, i] = H[i]
+
 estimates = {
     "A": A_est,
     "B": B_est,
     "C": C_est,
     "Q": Q,
-    "Hankel":H_hankel
+    "markov_mat": markov_mat
 }
+
+print(estimates["markov_mat"].shape)
+
+
 np.savez(r"Results\Problem5\Problem_5_estimates.npz", **estimates)
