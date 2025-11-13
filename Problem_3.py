@@ -11,10 +11,10 @@ ls = ['-', '-', '-']
 
 t0 = 0
 tf = 20*90
-m10 = 0
-m20 = 0
-m30 = 0
-m40 = 0
+m10 = 10
+m20 = 10
+m30 = 10
+m40 = 10
 F1 = 250
 F2 = 325
 F3 = 100
@@ -35,7 +35,7 @@ Rvv = np.eye(4)*0.01
 umin = 1
 umax = 10000
 
-Model = FourTankSystem(Rvv, Rvv, p, delta_t, F3 = F3, F4 = F4)
+Model = FourTankSystem(Rvv, Rvv, p, delta_t, F3 = lambda t: t*0 + F3, F4 = lambda t: t*0 + F4)
 
 xs = Model.GetSteadyState(x0, u, d)
 print("Steady state (m):", xs)
@@ -66,12 +66,12 @@ if sys.argv[1] == 'test':
     plt.show()
     sys.exit()
 
-setpoint = goal
+setpoint = good_goal
 
-Kp = 30
+Kp = 100
 
 if sys.argv[1] == 'p':
-    controller_p = pid.PIDController(5, 0, 0, setpoint, delta_t, umin, umax)
+    controller_p = pid.PIDController(10, 0, 0, setpoint, delta_t, umin, umax)
 
     t, x, u, d, h = Model.ClosedLoop((t0, tf), state_0, controller_p)
 
@@ -86,9 +86,9 @@ if sys.argv[1] == 'p':
         else:
             axes[0, 1].plot(t/60, d[i-2, :], label=f'Flow of Tank {i+1}', color=colors[i], ls=ls[0])
 
-    axes[0, 0].set_ylim(0, np.max(h)*1.1)
+    axes[0, 0].set_ylim(0, max(np.max(h), np.max(setpoint))*1.1)
     axes[0, 1].set_ylim(0, np.max(u)*1.1)
-    axes[0, 0].set_ylabel('K_p = 5\nHeight [m]')
+    axes[0, 0].set_ylabel('K_p = 10\nHeight [m]')
     axes[0, 1].set_ylabel('Flow [m³/s]')
     axes[0, 0].grid(True, linestyle='--', alpha=0.5)
     axes[0, 1].grid(True, linestyle='--', alpha=0.5)
@@ -105,14 +105,14 @@ if sys.argv[1] == 'p':
         else:
             axes[1, 1].plot(t/60, d[i-2, :], label=f'Flow of Tank {i+1}', color=colors[i], ls=ls[1])
 
-    axes[1, 0].set_ylim(0, np.max(h)*1.1)
+    axes[1, 0].set_ylim(0, max(np.max(h), np.max(setpoint))*1.1)
     axes[1, 1].set_ylim(0, np.max(u)*1.1)
     axes[1, 0].set_ylabel(f'K_p = {Kp}\nHeight [m]')
     axes[1, 1].set_ylabel('Flow [m³/s]')
     axes[1, 0].grid(True, linestyle='--', alpha=0.5)
     axes[1, 1].grid(True, linestyle='--', alpha=0.5)
 
-    controller_p = pid.PIDController(100, 0, 0, setpoint, delta_t, umin, umax)
+    controller_p = pid.PIDController(500, 0, 0, setpoint, delta_t, umin, umax)
 
     t, x, u, d, h = Model.ClosedLoop((t0, tf), state_0, controller_p)
 
@@ -123,7 +123,7 @@ if sys.argv[1] == 'p':
         else:
             axes[2, 1].plot(t/60, d[i-2, :], label=f'Flow of Tank {i+1}', color=colors[i], ls=ls[2])
 
-    axes[2, 0].set_ylim(0, np.max(h)*1.1)
+    axes[2, 0].set_ylim(0, max(np.max(h), np.max(setpoint))*1.1)
     axes[2, 1].set_ylim(0, np.max(u)*1.1)
     axes[2, 0].set_ylabel('K_p = 500\nHeight [m]')
     axes[2, 1].set_ylabel('Flow [m³/s]')
@@ -132,6 +132,10 @@ if sys.argv[1] == 'p':
     axes[2, 0].grid(True, linestyle='--', alpha=0.5)
     axes[2, 1].grid(True, linestyle='--', alpha=0.5)
 
+    for i in range(3):
+        axes[i, 0].plot(t/60, t*0 + setpoint[0], label=f'Setpoint for Tank 1 (h1)', color="gray", ls="--")
+        axes[i, 0].plot(t/60, t*0 + setpoint[1], label=f'Setpoint for Tank 2 (h2)', color="black", ls="--")
+
     axes[0, 0].legend(loc='upper center', bbox_to_anchor=(0.5, 1.10),
             ncol=2, fancybox=True, shadow=True)
     axes[0, 1].legend(loc='upper center', bbox_to_anchor=(0.5, 1.10),
@@ -139,11 +143,11 @@ if sys.argv[1] == 'p':
 
     plt.tight_layout()
     plt.savefig('figures/Problem3/Problem_3_Kp.png')
-    # plt.show()
+    plt.show()
 
-Ki = 0.3
+Ki = 0.1
 if sys.argv[1] == 'pi':
-    controller_pi = pid.PIDController(Kp, 0.1, 0, setpoint, delta_t, umin, umax)
+    controller_pi = pid.PIDController(Kp, 0.01, 0, setpoint, delta_t, umin, umax)
 
     t, x, u, d, h = Model.ClosedLoop((t0, tf), state_0, controller_pi)
 
@@ -157,10 +161,10 @@ if sys.argv[1] == 'pi':
             axes[0, 1].plot(t/60, u[i, :], label=f'Flow of Tank {i+1}', color=colors[i], ls=ls[0])
         else:
             axes[0, 1].plot(t/60, d[i-2, :], label=f'Flow of Tank {i+1}', color=colors[i], ls=ls[0])
-
-    axes[0, 0].set_ylim(0, np.max(h)*1.1)
+    
+    axes[1, 0].set_ylim(0, max(np.max(h), np.max(setpoint))*1.1)
     axes[0, 1].set_ylim(0, np.max(u)*1.1)
-    axes[0, 0].set_ylabel('K_i = 0.1\nHeight [m]')
+    axes[0, 0].set_ylabel('K_i = 0.01\nHeight [m]')
     axes[0, 1].set_ylabel('Flow [m³/s]')
     axes[0, 0].grid(True, linestyle='--', alpha=0.5)
     axes[0, 1].grid(True, linestyle='--', alpha=0.5)
@@ -177,7 +181,7 @@ if sys.argv[1] == 'pi':
         else:
             axes[1, 1].plot(t/60, d[i-2, :], label=f'Flow of Tank {i+1}', color=colors[i], ls=ls[1])
 
-    axes[1, 0].set_ylim(0, np.max(h)*1.1)
+    axes[1, 0].set_ylim(0, max(np.max(h), np.max(setpoint))*1.1)
     axes[1, 1].set_ylim(0, np.max(u)*1.1)
     axes[1, 0].set_ylabel(f'K_i = {Ki}\nHeight [m]')
     axes[1, 1].set_ylabel('Flow [m³/s]')
@@ -195,7 +199,7 @@ if sys.argv[1] == 'pi':
         else:
             axes[2, 1].plot(t/60, d[i-2, :], label=f'Flow of Tank {i+1}', color=colors[i], ls=ls[2])
 
-    axes[2, 0].set_ylim(0, np.max(h)*1.1)
+    axes[2, 0].set_ylim(0, max(np.max(h), np.max(setpoint))*1.1)
     axes[2, 1].set_ylim(0, np.max(u)*1.1)
     axes[2, 0].set_ylabel('K_i = 5\nHeight [m]')
     axes[2, 1].set_ylabel('Flow [m³/s]')
@@ -204,6 +208,10 @@ if sys.argv[1] == 'pi':
     axes[2, 0].grid(True, linestyle='--', alpha=0.5)
     axes[2, 1].grid(True, linestyle='--', alpha=0.5)
 
+    for i in range(3):
+        axes[i, 0].plot(t/60, t*0 + setpoint[0], label=f'Setpoint for Tank 1 (h1)', color="gray", ls="--")
+        axes[i, 0].plot(t/60, t*0 + setpoint[1], label=f'Setpoint for Tank 2 (h2)', color="black", ls="--")
+
     axes[0, 0].legend(loc='upper center', bbox_to_anchor=(0.5, 1.10),
             ncol=2, fancybox=True, shadow=True)
     axes[0, 1].legend(loc='upper center', bbox_to_anchor=(0.5, 1.10),
@@ -211,11 +219,11 @@ if sys.argv[1] == 'pi':
 
     plt.tight_layout()
     plt.savefig('figures/Problem3/Problem_3_Ki.png')
-    # plt.show()
+    plt.show()
 
 Kd = 500
 if sys.argv[1] == 'pid':
-    controller_pid = pid.PIDController(Kp, Ki, 10, setpoint, delta_t, umin, umax)
+    controller_pid = pid.PIDController(Kp, Ki, 200, setpoint, delta_t, umin, umax)
 
     t, x, u, d, h = Model.ClosedLoop((t0, tf), state_0, controller_pid)
 
@@ -230,9 +238,9 @@ if sys.argv[1] == 'pid':
         else:
             axes[0, 1].plot(t/60, d[i-2, :], label=f'Flow of Tank {i+1}', color=colors[i], ls=ls[0])
 
-    axes[0, 0].set_ylim(0, np.max(h)*1.1)
+    axes[0, 0].set_ylim(0, max(np.max(h), np.max(setpoint))*1.1)
     axes[0, 1].set_ylim(0, np.max(u)*1.1)
-    axes[0, 0].set_ylabel('K_d = 10\nHeight [m]')
+    axes[0, 0].set_ylabel('K_d = 200\nHeight [m]')
     axes[0, 1].set_ylabel('Flow [m³/s]')
     axes[0, 0].grid(True, linestyle='--', alpha=0.5)
     axes[0, 1].grid(True, linestyle='--', alpha=0.5)
@@ -249,14 +257,14 @@ if sys.argv[1] == 'pid':
         else:
             axes[1, 1].plot(t/60, d[i-2, :], label=f'Flow of Tank {i+1}', color=colors[i], ls=ls[1])
 
-    axes[1, 0].set_ylim(0, np.max(h)*1.1)
+    axes[1, 0].set_ylim(0, max(np.max(h), np.max(setpoint))*1.1)
     axes[1, 1].set_ylim(0, np.max(u)*1.1)
     axes[1, 0].set_ylabel(f'K_d = {Kd}\nHeight [m]')
     axes[1, 1].set_ylabel('Flow [m³/s]')
     axes[1, 0].grid(True, linestyle='--', alpha=0.5)
     axes[1, 1].grid(True, linestyle='--', alpha=0.5)
 
-    controller_pid = pid.PIDController(Kp, Ki, 1e3, setpoint, delta_t, umin, umax)
+    controller_pid = pid.PIDController(Kp, Ki, 825, setpoint, delta_t, umin, umax)
 
     t, x, u, d, h = Model.ClosedLoop((t0, tf), state_0, controller_pid)
 
@@ -267,14 +275,18 @@ if sys.argv[1] == 'pid':
         else:
             axes[2, 1].plot(t/60, d[i-2, :], label=f'Flow of Tank {i+1}', color=colors[i], ls=ls[2])
 
-    axes[2, 0].set_ylim(0, np.max(h)*1.1)
+    axes[2, 0].set_ylim(0, max(np.max(h), np.max(setpoint))*1.1)
     axes[2, 1].set_ylim(0, np.max(u)*1.1)
-    axes[2, 0].set_ylabel('K_d = 1e3\nHeight [m]')
+    axes[2, 0].set_ylabel('K_d = 825\nHeight [m]')
     axes[2, 1].set_ylabel('Flow [m³/s]')
     axes[2, 0].set_xlabel('Time [m]')
     axes[2, 1].set_xlabel('Time [m]')
     axes[2, 0].grid(True, linestyle='--', alpha=0.5)
     axes[2, 1].grid(True, linestyle='--', alpha=0.5)
+
+    for i in range(3):
+        axes[i, 0].plot(t/60, t*0 + setpoint[0], label=f'Setpoint for Tank 1 (h1)', color="gray", ls="--")
+        axes[i, 0].plot(t/60, t*0 + setpoint[1], label=f'Setpoint for Tank 2 (h2)', color="black", ls="--")
 
     axes[0, 0].legend(loc='upper center', bbox_to_anchor=(0.5, 1.10),
             ncol=2, fancybox=True, shadow=True)
@@ -283,7 +295,7 @@ if sys.argv[1] == 'pid':
 
     plt.tight_layout()
     plt.savefig('figures/Problem3/Problem_3_Kd.png')
-    # plt.show()
+    plt.show()
 
 if sys.argv[1] == 'sim':
     colors = ['dodgerblue', 'tomato', 'limegreen', 'orange']
@@ -293,7 +305,7 @@ if sys.argv[1] == 'sim':
     import params.pid_params as pid_params
 
     controller_pid = pid.PIDController(pid_params.Kp, pid_params.Ki, pid_params.Kd, good_goal, delta_t, umin, umax)
-    Model = FourTankSystem(Rvv, Rvv, p, delta_t, F3 = F3, F4 = F4)
+    Model = FourTankSystem(Rvv, Rvv, p, delta_t, F3 = lambda t: t*0 + F3, F4 = lambda t: t*0 + F4)
     t, x, u, d, h = Model.ClosedLoop((t0, tf), state_0, controller_pid)
 
 
@@ -305,5 +317,9 @@ if sys.argv[1] == 'sim':
             axes[1].step(t/60, u[i, :], label=f'Flow of Tank {i+1}', color=colors[i], ls=ls[0])
         else:
             axes[1].step(t/60, d[i-2, :], label=f'Flow of Tank {i+1}', color=colors[i], ls=ls[0])
+
+    axes[0].plot(t/60, t*0 + setpoint[0], label=f'Setpoint for Tank 1 (h1)', color="gray", ls="--")
+    axes[0].plot(t/60, t*0 + setpoint[1], label=f'Setpoint for Tank 2 (h2)', color="black", ls="--")
+
     plt.savefig('figures/Problem3/Problem_3_sim.png')
     plt.show()
