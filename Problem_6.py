@@ -68,10 +68,10 @@ W = np.random.multivariate_normal(mean=np.zeros(A_est.shape[0]), cov=Q, size=N)
 V = np.random.multivariate_normal(mean=np.zeros(R.shape[0]), cov=R, size=N)
 X_true = np.zeros([N, 4])  
 
-linear = 0
+linear = 1
 static = 1
 Hankel = 0
-disturbance_change = 1
+disturbance_change = 0
 
 if disturbance_change:
     d = np.ones([len(t),2])*ds
@@ -98,7 +98,7 @@ for t_idx,t_val in enumerate(t[:-1]):
         zt = discrete_output_update(C_use, xt, V[t_idx][:-2]) 
         
     else:
-        yt = Model_Stochastic.StateSensor(xt[:4])#+xs[:4]) # Her
+        yt = Model_Stochastic.StateSensor(xt[:4])
         zt = yt[:2]
 
     # Designed with linear system 
@@ -114,7 +114,7 @@ for t_idx,t_val in enumerate(t[:-1]):
         yt_est = discrete_output_update(C_use, xt_hat, V[t_idx][:-2])
         Z_est[t_idx, :] = yt_est[:2] + xs[:2]
     else:
-        yt_est = Model_Stochastic.StateSensor(xt_hat[:4])#+xs[:4]) # Her
+        yt_est = Model_Stochastic.StateSensor(xt_hat[:4])
         Z_est[t_idx, :] = yt_est[:2] + xs[:2]
 
     # Simulate next true state  
@@ -133,18 +133,18 @@ for i in range(4):
     ax[i].set_title(f'$x_{{{i+1},t}}$')
     ax[i].legend()
     ax[i].grid(True)
-    #ax[i].set_xticklabels([]) 
     ax[i].set_xlabel('') 
 ax[i].legend()
 ax[i].grid(True)
 ax[i].set_xlabel('Time')     
-fig.suptitle("Open loop of the discrete time system\n State estimation using Kalman filter", fontsize=16)
-plt.tight_layout(rect=[0, 0.1, 1, 0.95])
-
+fig.suptitle("Open loop of the linear discrete time system system\n State estimation using discrete time Kalman filter", fontsize=16)
+plt.tight_layout(pad=2)
+plt.savefig(f"Results/Problem6/KF_5_D_constant_states_linear.png")
+plt.close()
 fig, ax = plt.subplots(2, 1, figsize=(12, 12))  
 for i in range(2):
-    ax[i].plot(t[:-1], Z[:, i]/100,'--', label='True State', color="black")
-    ax[i].plot(t[:-1], Z_est[:, i]/100, '*-', label='Kalman Estimate', color="red")
+    ax[i].plot(t[:-1], Z[:, i]/100,'--', label='True state', color="black")
+    ax[i].plot(t[:-1], Z_est[:, i]/100, '*-', label='Kalman estimate', color="red")
     ax[i].set_title(f'$z_{{{i+1},t}}$')
     ax[i].legend()
     ax[i].grid(True)
@@ -153,21 +153,27 @@ for i in range(2):
 ax[i].legend()
 ax[i].grid(True)
 ax[i].set_xlabel('Time')     
-fig.suptitle("Open loop of the discrete time system\n State estimation using Kalman filter", fontsize=16)
-plt.tight_layout(rect=[0, 0.1, 1, 0.95])
+fig.suptitle("Open loop of the linear discrete time system  system\n State estimation using discrete time Kalman filter", fontsize=16)
+plt.tight_layout(pad=2)
+plt.savefig(f"Results/Problem6/KF_5_D_constant_output_linear.png")
+plt.close()
 
 fig, ax = plt.subplots(2, 1, figsize=(12, 12)) 
-ax[0].plot(t[:-1],d[:-1,0]*np.ones(len(t[:-1])), label='$d_1 true$')
-ax[0].plot(t[:-1],d[:-1,1]*np.ones(len(t[:-1])), label='$d_2 true$')
+ax[0].plot(t[:-1],d[:-1,0]*np.ones(len(t[:-1])), label='True $d_1$')
+ax[0].plot(t[:-1],d[:-1,1]*np.ones(len(t[:-1])), label='True $d_2 $')
 for i,VEC, label, title in zip(range(2),[D,U],["d","u"],["Disturbance Estimates","Control inputs"]):
-    ax[i].plot(t[:-1],VEC[:,0],'--',label=f"{label}$_1$")
-    ax[i].plot(t[:-1],VEC[:,1],'--',label=f"{label}$_2$")
+    if "d" in label:
+        ax[i].plot(t[:-1],VEC[:,0],'--',label=f"{label}$_1$ Kalman estimate")
+        ax[i].plot(t[:-1],VEC[:,1],'--',label=f"{label}$_2$ Kalman estimate")
+    else:
+        ax[i].plot(t[:-1],VEC[:,0],'--',label=f"{label}$_1$")
+        ax[i].plot(t[:-1],VEC[:,1],'--',label=f"{label}$_2$")
     ax[i].set_title(title)
     ax[i].legend()
     ax[i].grid(True)
 ax[i].set_xlabel('Time')
-fig.suptitle("Control input and estimate of disturbance input", fontsize=16)
-plt.tight_layout(rect=[0, 0.1, 1, 0.95])
+fig.suptitle("Control input and disturbance estimated using discrete time Kalman filter with the linear discrete time system", fontsize=16)
+plt.tight_layout(pad=2)
 
-plt.show()
-
+plt.savefig(f"Results/Problem6/KF_5_D_constant_input_linear.png")
+plt.close()

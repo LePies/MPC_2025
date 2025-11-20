@@ -379,12 +379,12 @@ class MPC:
         # Hdu: penalty on input rate (smoothness)
         Hdu = self.Lamb.T@Wdu_bar.T@Wdu_bar@self.Lamb
         
-        # Hz: penalty on output tracking error
+        # Hz: penalty on output tracking error 
         Hz = self.Gamma.T@Wz_bar.T@Wz_bar@self.Gamma
         H = Hu + Hdu + Hz
 
         # Build gradient vector g for QP
-        # gu: gradient from input reference tracking
+        # gu: gradient from input reference tracking 
         gu = -Wu_bar.T@Wu_bar@self.U_bar
         
         # gdu: gradient from input rate penalty (depends on current input uk)
