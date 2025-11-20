@@ -44,7 +44,7 @@ if __name__ == "__main__":
             np.zeros((2, 2)),
             np.eye(2),
         ]).T
-    elif problem == "Problem 4":
+    elif problem == "Problem 4":  
         data = np.load(r"Results\Problem4\Problem_4_estimates.npz")
         Ad = data["A"]
         Bd = data["B"]

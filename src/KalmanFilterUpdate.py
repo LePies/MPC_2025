@@ -23,7 +23,7 @@ def KalmanFilterUpdate(xt:float,dt:float, ut:float,yt:float,A:np.ndarray,B:np.nd
     else:
         P = A@(P-kappa@C@P)@A.T+Q
 
-    xtp1 = A@(xt+kappa@(yt-C@xt))+B@ut#+E@dt
+    xtp1 = A@(xt+kappa@(yt-C@xt))+B@ut #+E@dt
 
     return xtp1,P
 
