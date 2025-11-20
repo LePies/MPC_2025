@@ -11,7 +11,21 @@ class MPC:
     - Solves an unconstrained QP problem at each time step
     - Handles reference tracking with input/output weighting
     """
-    def __init__(self, x0, w0, N, U_bar, R_bar, G, A, B, C, Q, R, u0 = None,problem="Problem 5", Wz=None, Wu=None, Wdu=None, Umin = None, Umax = None, Dmin = None, Dmax = None):
+    def __init__(
+        self,
+        x0, w0, N, U_bar, R_bar, G, A, B, C, Q, R,
+        u0 = None,
+        problem="Problem 5",
+        Wz=None,
+        Wu=None,
+        Wdu=None,
+        Umin = None,
+        Umax = None,
+        Dmin = None,
+        Dmax = None,
+        Rmax = None,
+        Rmin = None,
+    ) -> None:
         """
         Initialize the MPC controller.
         
@@ -69,19 +83,56 @@ class MPC:
             self.xk = self.xk[:4]
         self.noutput = C.shape[0]  # Number of outputs (ny)
         self.ninput = B.shape[1]   # Number of inputs (nu) - FIXED: Added to track input dimension shape of Uk and Umin, Umax
-        self.uk = self.get_uk(u0)
+        self.uk = self.compute_uk(u0)
+        self.Rmax = Rmax
+        self.Rmin = Rmin
         
         # Pre-compute matrices that don't change during runtime
-        self.Gamma = self.get_gamma()  # Markov parameter matrix for output prediction
-        self.phi_x = self.get_phi_x()  # State-to-output prediction matrix
-        self.phi_w = self.get_phi_w()  # Disturbance-to-output prediction matrix
-        self.Pk = self.get_Pk()        # Initial covariance matrix for Kalman filter
-        self.Umin = self.get_Umin(Umin)
-        self.Umax = self.get_Umax(Umax)
-        self.Dmin = self.get_Dmin(Dmin)
-        self.Dmax = self.get_Dmax(Dmax)
+        self.Gamma = self.compute_gamma()  # Markov parameter matrix for output prediction
+        self.phi_x = self.compute_phi_x()  # State-to-output prediction matrix
+        self.phi_w = self.compute_phi_w()  # Disturbance-to-output prediction matrix
+        self.Pk = self.compute_Pk()        # Initial covariance matrix for Kalman filter
+        self.Umin = self.compute_Umin(Umin)
+        self.Umax = self.compute_Umax(Umax)
+        self.Dmin = self.compute_Dmin(Dmin)
+        self.Dmax = self.compute_Dmax(Dmax)
+        self.Rmax = self.compute_Rmax(Rmax)
+        self.Rmin = self.compute_Rmin(Rmin)
 
-    def get_uk(self, u0):
+    def set_umin(self, Umin):
+        self.Umin = self.compute_Umin(Umin)
+    def set_umax(self, Umax):
+        self.Umax = self.compute_Umax(Umax)
+    def set_dmin(self, Dmin):
+        self.Dmin = self.compute_Dmin(Dmin)
+    def set_dmax(self, Dmax):
+        self.Dmax = self.compute_Dmax(Dmax)
+    def set_rmax(self, Rmax):
+        self.Rmax = self.compute_Rmax(Rmax)
+    def set_rmin(self, Rmin):
+        self.Rmin = self.compute_Rmin(Rmin)
+
+    def compute_Rmax(self, Rmax):
+        if Rmax is None:
+            return None
+        elif Rmax.shape[0] == self.noutput:
+            return np.block([Rmax for i in range(self.N)])
+        elif Rmax.shape[0] == self.N*self.noutput:
+            return Rmax
+        else:
+            raise ValueError("Invalid Rmax shape")
+    
+    def compute_Rmin(self, Rmin):
+        if Rmin is None:
+            return None
+        elif Rmin.shape[0] == self.noutput:
+            return np.block([Rmin for i in range(self.N)])
+        elif Rmin.shape[0] == self.N*self.noutput:
+            return Rmin
+        else:
+            raise ValueError("Invalid Rmin shape")
+
+    def compute_uk(self, u0):
         if u0 is None:
             return np.zeros(self.ninput)
         elif u0.shape[0] == self.ninput:
@@ -89,7 +140,7 @@ class MPC:
         else:
             raise ValueError("Invalid u0 shape")
         
-    def get_Umin(self, Umin):
+    def compute_Umin(self, Umin):
         if Umin is None:
             return None
         elif Umin.shape[0] == self.ninput:
@@ -99,7 +150,7 @@ class MPC:
         else:
             raise ValueError("Invalid Umin shape")
 
-    def get_Umax(self, Umax):
+    def compute_Umax(self, Umax):
         if Umax is None:
             return None
         elif Umax.shape[0] == self.ninput:
@@ -109,7 +160,7 @@ class MPC:
         else:
             raise ValueError("Invalid Umax shape")
     
-    def get_Dmin(self, Dmin):
+    def compute_Dmin(self, Dmin):
         if Dmin is None:
             return None
         elif Dmin.shape[0] == self.ninput:
@@ -119,7 +170,7 @@ class MPC:
         else:
             raise ValueError("Invalid Dmin shape")
     
-    def get_Dmax(self, Dmax):
+    def compute_Dmax(self, Dmax):
         if Dmax is None:
             return None
         elif Dmax.shape[0] == self.ninput:
@@ -128,8 +179,8 @@ class MPC:
             return Dmax
         else:
             raise ValueError("Invalid Dmax shape")
-    
-    def get_Pk(self):
+
+    def compute_Pk(self):
         """
         Get initial covariance matrix for Kalman filter.
         
@@ -143,9 +194,9 @@ class MPC:
 
     def reset_control(self):
         """Reset the Kalman filter covariance matrix to initial value."""
-        self.Pk = self.get_Pk()
+        self.Pk = self.compute_Pk()
 
-    def get_phi_x(self):
+    def compute_phi_x(self):
         """
         Compute the state-to-output prediction matrix phi_x.
         
@@ -160,7 +211,7 @@ class MPC:
         phix = np.block([(self.C@self.A**i).T for i in range(1, self.N+1)])
         return phix
     
-    def get_phi_w(self):
+    def compute_phi_w(self):
         """
         Compute the disturbance-to-output prediction matrix phi_w.
         
@@ -175,7 +226,7 @@ class MPC:
         phiw = np.block([(self.C@(self.A**i)@self.G).T for i in range(self.N)])
         return phiw
         
-    def get_gamma(self):
+    def compute_gamma(self):
         """
         Get the Gamma matrix (Markov parameter matrix) for output prediction.
         
@@ -241,8 +292,8 @@ class MPC:
         I_N = np.eye(self.N)
         Wbar = np.kron(I_N, W)
         return Wbar
-
-    def MPC_qp(self):
+    
+    def MPC_input_constraints(self):
         """
         Solve the unconstrained MPC optimization problem.
         
@@ -380,6 +431,16 @@ class MPC:
         # Reshape solution: from (N*nu,) to (nu x N) matrix
         # Each column is the input at one time step
         return ufin.reshape(-1, self.ninput).T, info["f"] + rho
+    
+
+    def MPC_output_constraints(self):
+        pass
+
+    def MPC_qp(self):
+        if self.Rmax is not None and self.Rmin is not None:
+            return self.MPC_output_constraints()
+        else:
+            return self.MPC_input_constraints()
     
     def KalmanFilterUpdate(self, zk):
         """
