@@ -111,15 +111,15 @@ def Hankel_matrix(markov_params, r, s):
     Hp = H
     # SVD decomposition
     U, S, Vt = np.linalg.svd(Hp, full_matrices=False)
-    
+
     # Determine system order from singular values 
     n = np.sum(S > 1e-10)  # threshold for numerical stability  
-    
+
     # Calculate observability and controllability matrices
     Sigma_sqrt = np.diag(np.sqrt(S[:n]))
     Or = U[:, :n] @ Sigma_sqrt  # observability matrix
     Cr = Sigma_sqrt @ Vt[:n, :]  # controllability matrix
-    
+
     # Extract A, B, C matrices
     C = Or[:p, :]
     A = np.linalg.pinv(Or[:-p, :]) @ Or[p:, :]

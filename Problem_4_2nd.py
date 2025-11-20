@@ -256,44 +256,46 @@ axes[1, 1].grid(alpha = 0.25)
 plt.savefig(f'figures/Problem4/Problem_4_Stepresponse.png')
 plt.close()
 
-def Hankel_Matrix(p_rows=10, q_cols=10):
-    """
-    Compute the Hankel matrix from Markov parameters
-    
-    Parameters:
-    p_rows: number of block rows
-    q_cols: number of block columns
-    
-    Returns:
-    H_hankel: Hankel matrix of shape (p*ny, q*nu) where ny=2, nu=2
-    """
-    ny = 2  # number of outputs
-    nu = 2  # number of inputs
-    
-    # Initialize Hankel matrix
-    H_hankel = np.zeros((p_rows * ny, q_cols * nu))
-    
-    # Fill the Hankel matrix with Markov parameters
-    for i in range(p_rows):
-        for j in range(q_cols):
-            # Get Markov parameters for time step i+j
-            h_ij = np.zeros((ny, nu))
-            
-            # Fill the block at position (i,j)
-            for out_idx in range(ny):
-                for in_idx in range(nu):
-                    # Get the Markov parameter for output out_idx, input in_idx, at time i+j
-                    markov_param = H(out_idx, in_idx, [i + j])
-                    h_ij[out_idx, in_idx] = markov_param[0][0]
-            
-            # Place the block in the Hankel matrix
-            H_hankel[i*ny:(i+1)*ny, j*nu:(j+1)*nu] = h_ij
-    
-    return H_hankel
+def Hankel_matrix(markov_params, r, s):
+
+    n, p, m = markov_params.shape
+    print(n, p, m)
+    print((r*p, s*m))
+    H = np.zeros((r*p, s*m))
+
+    # Create Hankel matrix 
+    for i in range(r):
+        for j in range(s):
+            H[i*p:(i+1)*p, j*m:(j+1)*m] = markov_params[i+j]
+
+    # Split Hankel matrix into past and future parts
+    #Hp = H[:p*r//2, :m*s//2]  # past
+    #Hf = H[p*r//2:, :m*s//2]  # future 
+    Hp = H
+    # SVD decomposition
+    U, S, Vt = np.linalg.svd(Hp, full_matrices=False)
+
+    # Determine system order from singular values 
+    n = np.sum(S > 1e-10)  # threshold for numerical stability  
+
+    # Calculate observability and controllability matrices
+    Sigma_sqrt = np.diag(np.sqrt(S[:n]))
+    Or = U[:, :n] @ Sigma_sqrt  # observability matrix
+    Cr = Sigma_sqrt @ Vt[:n, :]  # controllability matrix
+
+    # Extract A, B, C matrices
+    C = Or[:p, :]
+    A = np.linalg.pinv(Or[:-p, :]) @ Or[p:, :]
+    B = Cr[:, :m]
+
+    return H, A, B, C, S
 
 # Compute and display the Hankel matrix
 print("Computing Hankel Matrix...")
-H_hankel = Hankel_Matrix(p_rows=25, q_cols=25)
+markov_params = np.zeros((N, 2, 2))
+for k in range(markov_mat.shape[2]):
+    markov_params[k, :, :] = markov_mat[:, :, k]
+H_hankel, A, B, C, S = Hankel_matrix(markov_params, 5, 5)
 # print(H_hankel)
 
 # Compute SVD of Hankel matrix for system order estimation
@@ -308,26 +310,6 @@ plt.title('Singular Values of Hankel Matrix')
 plt.grid(True, alpha=0.3)
 plt.savefig('figures/Problem4/Problem_4_Hankel_SingularValues.png')
 plt.close()
-
-# Estimate system order based on singular values
-# Look for a significant drop in singular values
-threshold = 1e-17  # 1% of the largest singular value
-significant_singular_values = S[S > threshold * S[0]]
-estimated_order = len(significant_singular_values)
-
-N = 6
-
-S_sqrt = np.diag(np.sqrt(S[:N]))
-
-
-Oo = K[:, :N]@S_sqrt
-Co = S_sqrt@Lt[:N, :]
-
-B = Co[:,:2]
-C = Oo[:2, :]
-A = np.linalg.inv(S_sqrt)@K[:, :N].T@H_hankel@Lt[:N, :].T@np.linalg.inv(S_sqrt)
-A_test = np.linalg.pinv(Oo) @ Oo
-print(np.linalg.norm(A - A_test))
 
 D = np.array([
     [H(0, 0, [0])[0][0], H(0, 1, [0])[0][0]],
