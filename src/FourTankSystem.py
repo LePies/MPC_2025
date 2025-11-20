@@ -237,7 +237,7 @@ class FourTankSystem:
         Cz=C[:2,:]
 
         return A,B,C,E,Cz
-
+ 
     def LinearizeContinousTime(self,xs,d):
 
         xs, is_deterministic = self.SetLoopStates(xs,d)
