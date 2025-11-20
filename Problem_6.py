@@ -102,7 +102,7 @@ for t_idx,t_val in enumerate(t[:-1]):
         zt = yt[:2]
 
     # Designed with linear system 
-    xt_hat, P = KalmanFilterUpdate(xt_hat, d[t_idx]-ds, us*0, zt, A_use, B_use, E_use, C_use, P, Q, R[:2,:2], stationary=static)
+    xt_hat, P = KalmanFilterUpdate(xt_hat, d[t_idx]-ds, us*0, zt, A_use, B_use, C_use, P, Q, R[:2,:2], stationary=static)
 
     U[t_idx, :] = us
     Z[t_idx, :] = zt + xs[:2]   

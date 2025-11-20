@@ -192,7 +192,11 @@ class FourTankSystem:
 
         for i in tqdm.tqdm(range(1, t_array.shape[0]), desc="Simulating closed loop", unit="step", leave=True, ncols=80):
             zt = self.StateOutput(h_array[:, i-1])
-            ut = controller.update(zt)
+            # if controller is an array, select the appropriate controller for the current step
+            if isinstance(controller, (list, tuple, np.ndarray)):
+                ut = controller[:, i-1]
+            else:
+                ut = controller.update(zt)
             sol = solve_ivp(f, (t_array[i-1], t_array[i]), states_array[:, i-1], method='RK45',args = (ut,))
             state_new = sol.y[:, -1]
 
@@ -201,7 +205,7 @@ class FourTankSystem:
                 x_new[4:] = d[:, i]
             else:
                 x_new = state_new
-
+            
             states_array[:, i] = x_new
             h_array[:, i] = self.StateSensor(states_array[:4, i])
             u_array[:, i-1] = ut
