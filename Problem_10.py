@@ -221,11 +221,6 @@ if __name__ == "__main__":
     axes[1].plot(t, u[0, :], label='Flow Tank 1 (u₁)', color='dodgerblue', linewidth=2)
     axes[1].plot(t, u[1, :], label='Flow Tank 2 (u₂)', color='tomato', linewidth=2)
     
-    # Plot input constraints
-    axes[1].axhline(y=Umax[0], color='dodgerblue', linestyle=':', linewidth=1.5, 
-                    alpha=0.5, label='Input limits')
-    axes[1].axhline(y=Umin[0], color='dodgerblue', linestyle=':', linewidth=1.5, alpha=0.5)
-    
     axes[1].legend(loc='best')
     axes[1].set_xlabel('Time [s]')
     axes[1].set_ylabel('Flow [cm³/s]')
