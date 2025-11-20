@@ -72,7 +72,8 @@ class MPC:
         self.N = N
         self.U_bar = U_bar.flatten()  # Flatten to (N*nu,) vector
         self.R_bar = R_bar.flatten()  # Flatten to (N*ny,) vector
-        self.wk = w0
+        self.w0 = w0
+        self.wk = self.w0
         self.problem = problem
         self.Wz = Wz
         self.Wu = Wu
@@ -83,12 +84,14 @@ class MPC:
         self.B = B
         self.Q = Q
         self.R = R
-        self.xk = x0
+        self.x0 = x0
+        self.xk = self.x0
         if self.problem == "Problem 4":
             self.xk = self.xk[:4]
         self.noutput = C.shape[0]  # Number of outputs (ny)
         self.ninput = B.shape[1]   # Number of inputs (nu) - FIXED: Added to track input dimension shape of Uk and Umin, Umax
-        self.uk = self.compute_uk(u0)
+        self.u0 = u0
+        self.uk = self.compute_uk()
         self.Rmax = Rmax
         self.Rmin = Rmin
         
@@ -155,11 +158,11 @@ class MPC:
         else:
             raise ValueError("Invalid Rmin shape")
 
-    def compute_uk(self, u0):
-        if u0 is None:
+    def compute_uk(self):
+        if self.u0 is None:
             return np.zeros(self.ninput)
-        elif u0.shape[0] == self.ninput:
-            return u0
+        elif self.u0.shape[0] == self.ninput:
+            return self.u0
         else:
             raise ValueError("Invalid u0 shape")
         
@@ -218,6 +221,9 @@ class MPC:
     def reset_control(self):
         """Reset the Kalman filter covariance matrix to initial value."""
         self.Pk = self.compute_Pk()
+        self.xk = self.x0
+        self.wk = self.w0
+        self.uk = self.compute_uk()
 
     def compute_phi_x(self):
         """
@@ -649,6 +655,9 @@ class MPC:
         """
         # Update state estimate with new measurement
         self.xk = self.KalmanFilterUpdate(zk)
+
+        if self.xk.shape[0] > 4:
+            self.wk = self.wk[-2:]
 
         # Solve MPC optimization problem
         ufin, _ = self.MPC_qp()
