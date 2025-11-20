@@ -69,6 +69,11 @@ if __name__ == "__main__":
     U_bar = np.ones((N_mpc, 2)) * np.array([280, 300])  # Tuned input reference
     R_bar = np.ones((N_mpc, 2)) * good_goal
 
+
+    Umin = np.array([0, 0])
+    Umax = np.array([3000, 3000])
+    Dmin = np.array([-5, -10])
+    Dmax = np.array([10, 5])
     # Tuned weighting matrices:
     # Wz: High value (30) for strong output tracking - prioritizes reaching setpoint
     # Wu: Low value (1e-3) to allow sufficient control effort without excessive penalty
@@ -90,6 +95,10 @@ if __name__ == "__main__":
         Wz=np.eye(2) * 2,      # Increased from 1: strong tracking priority
         Wu=np.eye(2) * 1e-3,    # Decreased from 1e-1: allow more control effort
         Wdu=np.eye(2) * 0.5,    # Decreased from 1: smoother but still responsive
+        Umin=Umin,
+        Umax=Umax,
+        Dmin=Dmin,
+        Dmax=Dmax,
     )
 
     t, x, u, d, h = Model_Stochastic.ClosedLoop(np.array([0, N_t]), xs, mpc_controller)
@@ -99,7 +108,6 @@ if __name__ == "__main__":
     axes[0].plot(t, h[1, :], label='Height of Tank 2', color='tomato')
     axes[0].plot(t, h[2, :], label='Height of Tank 3', color='limegreen')
     axes[0].plot(t, h[3, :], label='Height of Tank 4', color='orange')
-
     axes[0].plot(t, t*0 + R_bar[0, 0], label='Setpoint for Tank 1', color='dodgerblue', ls='--')
     axes[0].plot(t, t*0 + R_bar[0, 1], label='Setpoint for Tank 2', color='tomato', ls='--')
     axes[0].legend()
@@ -112,5 +120,5 @@ if __name__ == "__main__":
     axes[1].set_xlabel('Time [s]')
     axes[1].set_ylabel('Flow [m³/s]')
     axes[1].grid(True)
-    fig.savefig('figures/Problem8/Problem_8_Heights.png')
+    fig.savefig('figures/Problem9/Problem_9_Heights.png')
     plt.close()

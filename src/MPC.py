@@ -11,7 +11,7 @@ class MPC:
     - Solves an unconstrained QP problem at each time step
     - Handles reference tracking with input/output weighting
     """
-    def __init__(self, u0, x0, w0, N, U_bar, R_bar, G, A, B, C, Q, R, problem="Problem 5", Wz=None, Wu=None, Wdu=None):
+    def __init__(self, x0, w0, N, U_bar, R_bar, G, A, B, C, Q, R, u0 = None,problem="Problem 5", Wz=None, Wu=None, Wdu=None, Umin = None, Umax = None, Dmin = None, Dmax = None):
         """
         Initialize the MPC controller.
         
@@ -68,15 +68,67 @@ class MPC:
         if self.problem == "Problem 4":
             self.xk = self.xk[:4]
         self.noutput = C.shape[0]  # Number of outputs (ny)
-        self.ninput = B.shape[1]   # Number of inputs (nu) - FIXED: Added to track input dimension
-        self.uk = u0
+        self.ninput = B.shape[1]   # Number of inputs (nu) - FIXED: Added to track input dimension shape of Uk and Umin, Umax
+        self.uk = self.get_uk(u0)
         
         # Pre-compute matrices that don't change during runtime
         self.Gamma = self.get_gamma()  # Markov parameter matrix for output prediction
         self.phi_x = self.get_phi_x()  # State-to-output prediction matrix
         self.phi_w = self.get_phi_w()  # Disturbance-to-output prediction matrix
         self.Pk = self.get_Pk()        # Initial covariance matrix for Kalman filter
+        self.Umin = self.get_Umin(Umin)
+        self.Umax = self.get_Umax(Umax)
+        self.Dmin = self.get_Dmin(Dmin)
+        self.Dmax = self.get_Dmax(Dmax)
 
+    def get_uk(self, u0):
+        if u0 is None:
+            return np.zeros(self.ninput)
+        elif u0.shape[0] == self.ninput:
+            return u0
+        else:
+            raise ValueError("Invalid u0 shape")
+        
+    def get_Umin(self, Umin):
+        if Umin is None:
+            return None
+        elif Umin.shape[0] == self.ninput:
+            return np.block([Umin for i in range(self.N)])
+        elif Umin.shape[0] == self.N*self.ninput:
+            return Umin
+        else:
+            raise ValueError("Invalid Umin shape")
+
+    def get_Umax(self, Umax):
+        if Umax is None:
+            return None
+        elif Umax.shape[0] == self.ninput:
+            return np.block([Umax for i in range(self.N)])
+        elif Umax.shape[0] == self.N*self.ninput:
+            return Umax
+        else:
+            raise ValueError("Invalid Umax shape")
+    
+    def get_Dmin(self, Dmin):
+        if Dmin is None:
+            return None
+        elif Dmin.shape[0] == self.ninput:
+            return np.block([Dmin for i in range(self.N)])
+        elif Dmin.shape[0] == self.N*self.ninput:
+            return Dmin
+        else:
+            raise ValueError("Invalid Dmin shape")
+    
+    def get_Dmax(self, Dmax):
+        if Dmax is None:
+            return None
+        elif Dmax.shape[0] == self.ninput:
+            return np.block([Dmax for i in range(self.N)])
+        elif Dmax.shape[0] == self.N*self.ninput:
+            return Dmax
+        else:
+            raise ValueError("Invalid Dmax shape")
+    
     def get_Pk(self):
         """
         Get initial covariance matrix for Kalman filter.
@@ -190,7 +242,7 @@ class MPC:
         Wbar = np.kron(I_N, W)
         return Wbar
 
-    def MPC_uncontrained(self):
+    def MPC_qp(self):
         """
         Solve the unconstrained MPC optimization problem.
         
@@ -245,10 +297,21 @@ class MPC:
         ck = self.R_bar - bk
 
         # Lambda matrix: creates input rate (difference) operator
-        # Lambda * u gives: [u[0]; u[1]-u[0]; u[2]-u[1]; ...]
-        # FIXED: Should use ninput, not noutput
-        Lamb = np.eye(self.N*self.ninput)
-        Lamb += -1*np.eye(self.N*self.ninput, k=-1)  # Subtract previous input
+        # Input vector u is flattened as [u0_0, u0_1, u1_0, u1_1, ...] where:
+        #   u0_0 is first input at time 0, u0_1 is second input at time 0, etc.
+        # Lambda should compute: [u[0]-uk[0]; u[1]-uk[1]; u[2]-u[0]; u[3]-u[1]; u[4]-u[2]; ...]
+        # That is, differences between corresponding inputs at consecutive time steps
+        Lamb = np.zeros((self.N*self.ninput, self.N*self.ninput))
+        for i in range(self.N):
+            for j in range(self.ninput):
+                row_idx = i*self.ninput + j
+                if i == 0:
+                    # First time step: constraint is u[0] - uk (handled via bounds adjustment)
+                    Lamb[row_idx, row_idx] = 1.0
+                else:
+                    # Subsequent time steps: constraint is u[i] - u[i-1] for same input j
+                    Lamb[row_idx, row_idx] = 1.0  # Current input
+                    Lamb[row_idx, (i-1)*self.ninput + j] = -1.0  # Previous input (same input channel)
 
         # Build Hessian matrix H for QP: H = Hu + Hdu + Hz
         # Hu: penalty on input deviation from reference
@@ -282,9 +345,37 @@ class MPC:
         # Initial guess for QP solver (zeros)
         u_init = np.zeros(H.shape[0])
 
+        if self.Umin is not None:
+            l = self.Umin
+        else:
+            l = None
+        if self.Umax is not None:
+            u = self.Umax
+        else:
+            u = None
+
+        if self.Dmin is not None or self.Dmax is not None:
+            # Constraint: Dmin <= Lamb * u <= Dmax
+            # But we want: Dmin <= [u[0]-uk; u[1]-u[0]; ...] <= Dmax
+            # However, Lamb[0:ninput, :] * u = u[0] (first ninput elements), not u[0] - uk
+            # So we need to adjust bounds: Dmin <= u[0] - uk <= Dmax
+            # Which means: Dmin + uk <= u[0] <= Dmax + uk for first ninput constraints
+            # For subsequent constraints, Lamb[i, :] * u = u[i] - u[i-1], so bounds are just Dmin and Dmax
+            bl = np.full(self.N * self.ninput, -np.inf) if self.Dmin is None else self.Dmin.copy()
+            bu = np.full(self.N * self.ninput, np.inf) if self.Dmax is None else self.Dmax.copy()
+            # Adjust first time step bounds to account for uk
+            if self.Dmin is not None:
+                bl[0:self.ninput] = self.Dmin[0:self.ninput] + self.uk
+            if self.Dmax is not None:
+                bu[0:self.ninput] = self.Dmax[0:self.ninput] + self.uk
+        else:
+            bl = None
+            bu = None
+
         # Solve unconstrained QP: minimize 0.5*u^T*H*u + g^T*u
         # No constraints: l=-inf, u=inf, A=0 (no equality/inequality constraints)
-        ufin, info = qpsolver(H, g, -np.inf, np.inf, H*0, -np.inf, np.inf, u_init)
+        
+        ufin, info = qpsolver(H, g, l, u, Lamb, bl, bu, u_init)
 
         # Reshape solution: from (N*nu,) to (nu x N) matrix
         # Each column is the input at one time step
@@ -342,7 +433,7 @@ class MPC:
         self.xk = self.KalmanFilterUpdate(zk)
         
         # Solve MPC optimization problem
-        ufin, _ = self.MPC_uncontrained()
+        ufin, _ = self.MPC_qp()
         
         # Apply first input from optimal sequence (receding horizon)
         self.uk = ufin[:, 0]
