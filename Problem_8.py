@@ -48,14 +48,14 @@ def MPC_uncontrained(xk,uk,wk,U_bar,R_bar,C,A,Wz,Wu,Wdu,N,Markov_array):
     return uk + rho
 
 def F3_func(t):
-    if t < -50:
+    if t < 250:
         return 100
     else:
         return 50
     return 100
     
 def F4_func(t):
-    if t < -50:
+    if t < 250:
         return 120
     else:
         return 50
@@ -70,7 +70,7 @@ if __name__ == "__main__":
     xs = Model_Stochastic.GetSteadyState(x0, us)
     Ad, Bd, Ed, C, Cz = Model_Stochastic.LinearizeDiscreteTime(xs, ds,delta_t)
 
-    
+
 
 
 
