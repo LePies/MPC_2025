@@ -16,7 +16,7 @@ np.random.seed(42)
 data_prob5 = np.load(r"Results\Problem5\Problem_5_estimates.npz")
 data_prob4 = np.load(r"Results\Problem4\Problem_4_estimates.npz")
 
-prob = 5
+prob = 4  
 if prob == 4:
     data = data_prob4
 elif prob == 5: 
@@ -27,6 +27,16 @@ B_est = data["B"]
 C_est = data["C"]
 Q = data_prob5["Q"]
 
+if prob == 4:
+    Q1=Q[:2,:2]
+    Q2 = Q[4:,:2]
+    Q3 = Q[:2,4:]
+    Q4 =Q[4:,4:]
+    Q = np.block([
+    [Q1, Q2],
+    [Q3, Q4]
+])
+   
 Ts = 1
 
 def F3_func(t):
@@ -47,9 +57,7 @@ x0, us, ds, p , R, R_d, delta_t = initialize()
 Model_Stochastic = FourTankSystem(R_s=R, R_d=R_d*0, p=p, delta_t=delta_t,F3=F3_func,F4=F4_func)
 
 # Discrete Kalman filter parameters 
-x0 = np.concatenate((x0, ds))  
-xs = Model_Stochastic.GetSteadyState(x0, us)
-Ad, Bd, Ed, C, Cz = Model_Stochastic.LinearizeDiscreteTime(xs, ds, Ts)
+xs = Model_Stochastic.GetSteadyState(x0, us, ds)
 
 P = 5*np.eye(A_est.shape[0])  # Initial estimate error covariance 
 
@@ -58,6 +66,8 @@ N = int(Tf/delta_t)
 t = np.arange(0, Tf, delta_t)
 xt = x0.copy()-xs.copy()
 xt_hat = x0.copy()-xs.copy()
+
+# Find ud af hvordan vi estimerer d når vi har hankel matricen!!!!!!!!
 
 X = np.zeros([N-1,4])
 Z = np.zeros([N-1,2])
@@ -68,10 +78,10 @@ W = np.random.multivariate_normal(mean=np.zeros(A_est.shape[0]), cov=Q, size=N)
 V = np.random.multivariate_normal(mean=np.zeros(R.shape[0]), cov=R, size=N)
 X_true = np.zeros([N, 4])  
 
-linear = 0
+linear = 1
 static = 1
-Hankel = 0
-disturbance_change = 1
+Hankel = 1
+disturbance_change = 0
 
 if disturbance_change:
     d = np.ones([len(t),2])*ds
@@ -79,20 +89,14 @@ if disturbance_change:
 else:
     d = np.ones([len(t),2])*ds
 
-if Hankel:
-    A_use = A_est
-    B_use = B_est
-    C_use = C_est
-else:
-    A_use = Ad
-    B_use = Bd
-    C_use = Cz
-    E_use = Ed
+A_use = A_est
+B_use = B_est
+C_use = C_est
 
 for t_idx,t_val in enumerate(t[:-1]): 
 
     # Save true state before simulating     
-    X_true[t_idx, :] = xt[:-2] + xs[:-2] 
+    X_true[t_idx, :] = xt + xs
 
     if linear:
         zt = discrete_output_update(C_use, xt, V[t_idx][:-2]) 
@@ -106,7 +110,7 @@ for t_idx,t_val in enumerate(t[:-1]):
 
     U[t_idx, :] = us
     Z[t_idx, :] = zt + xs[:2]   
-    X[t_idx, :] = xt_hat[:-2] + xs[:-2]
+    X[t_idx, :] = xt_hat + xs
     D[t_idx, :] = xt_hat[-2:] + xs[4:]
 
     # Estimate output based on estimated state 
@@ -133,14 +137,13 @@ for i in range(4):
     ax[i].set_title(f'$x_{{{i+1},t}}$')
     ax[i].legend()
     ax[i].grid(True)
-    #ax[i].set_xticklabels([]) 
     ax[i].set_xlabel('') 
 ax[i].legend()
 ax[i].grid(True)
 ax[i].set_xlabel('Time')     
-fig.suptitle("Open loop of the nonlinear system\n State estimation using discrete time Kalman filter", fontsize=16)
+fig.suptitle("Open loop of the linear discrete time system system\n State estimation using discrete time Kalman filter", fontsize=16)
 plt.tight_layout(pad=2)
-plt.savefig(f"Results/Problem6/KF_5_D_vary_states_nonlinear.png")
+plt.savefig(f"Figures/Problem6/Problem6_4/KF_5_D_constant_states_linear.png")
 plt.close()
 fig, ax = plt.subplots(2, 1, figsize=(12, 12))  
 for i in range(2):
@@ -154,9 +157,9 @@ for i in range(2):
 ax[i].legend()
 ax[i].grid(True)
 ax[i].set_xlabel('Time')     
-fig.suptitle("Open loop of the nonlinear system\n State estimation using discrete time Kalman filter", fontsize=16)
+fig.suptitle("Open loop of the linear discrete time system  system\n State estimation using discrete time Kalman filter", fontsize=16)
 plt.tight_layout(pad=2)
-plt.savefig(f"Results/Problem6/KF_5_D_vary_output_nonlinear.png")
+plt.savefig(f"Figures/Problem6/Problem6_4/KF_5_D_constant_output_linear.png")
 plt.close()
 
 fig, ax = plt.subplots(2, 1, figsize=(12, 12)) 
@@ -173,8 +176,8 @@ for i,VEC, label, title in zip(range(2),[D,U],["d","u"],["Disturbance Estimates"
     ax[i].legend()
     ax[i].grid(True)
 ax[i].set_xlabel('Time')
-fig.suptitle("Control input and disturbance estimated using discrete time Kalman filter with nonlinear system", fontsize=16)
+fig.suptitle("Control input and disturbance estimated using discrete time Kalman filter with the linear discrete time system", fontsize=16)
 plt.tight_layout(pad=2)
 
-plt.savefig(f"Results/Problem6/KF_5_D_vary_input_nonlinear.png")
+plt.savefig(f"Figures/Problem6/Problem6_4/KF_5_D_constant_input_linear.png")
 plt.close()
