@@ -32,8 +32,8 @@ if __name__ == "__main__":
     u_op = np.array([250, 325])  # Operating point inputs
     d_op = np.array([100, 120])  # Operating point disturbances
 
-    N_t = 2000
-    N_mpc = 10
+    N_t = 20*60
+    N_mpc = 30
 
     good_goal = np.array([111.05, 100.0])  # Height of Tank 1 and 2
 
@@ -108,24 +108,24 @@ if __name__ == "__main__":
     t, x, u, d, h = Model_Stochastic.ClosedLoop(np.array([0, N_t]), xs_closedloop, mpc_controller)
 
     fig, axes = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
-    axes[0].plot(t, h[0, :], label='Height of Tank 1', color='dodgerblue')
-    axes[0].plot(t, h[1, :], label='Height of Tank 2', color='tomato')
-    axes[0].plot(t, h[2, :], label='Height of Tank 3', color='limegreen')
-    axes[0].plot(t, h[3, :], label='Height of Tank 4', color='orange')
+    axes[0].plot(t/60, h[0, :], label='Height of Tank 1', color='dodgerblue')
+    axes[0].plot(t/60, h[1, :], label='Height of Tank 2', color='tomato')
+    axes[0].plot(t/60, h[2, :], label='Height of Tank 3', color='limegreen')
+    axes[0].plot(t/60, h[3, :], label='Height of Tank 4', color='orange')
     # Plot setpoints (convert back to absolute if needed)
     R_bar_plot = R_bar_abs
     setpoint_1 = R_bar_plot[0, 0]
     setpoint_2 = R_bar_plot[0, 1]
-    axes[0].plot(t, t*0 + setpoint_1, label='Setpoint for Tank 1', color='dodgerblue', ls='--')
-    axes[0].plot(t, t*0 + setpoint_2, label='Setpoint for Tank 2', color='tomato', ls='--')
+    axes[0].plot(t/60, t*0 + setpoint_1, label='Setpoint for Tank 1', color='dodgerblue', ls='--')
+    axes[0].plot(t/60, t*0 + setpoint_2, label='Setpoint for Tank 2', color='tomato', ls='--')
     axes[0].legend()
-    axes[0].set_xlabel('Time [s]')
+    axes[0].set_xlabel('Time [min]')
     axes[0].set_ylabel('Height [m]')
     axes[0].grid(True)
-    axes[1].plot(t, u[0, :], label='Flow of Tank 1', color='dodgerblue')
-    axes[1].plot(t, u[1, :], label='Flow of Tank 2', color='tomato')
+    axes[1].plot(t/60, u[0, :], label='Flow of Tank 1', color='dodgerblue')
+    axes[1].plot(t/60, u[1, :], label='Flow of Tank 2', color='tomato')
     axes[1].legend()
-    axes[1].set_xlabel('Time [s]')
+    axes[1].set_xlabel('Time [min]')
     axes[1].set_ylabel('Flow [m³/s]')
     axes[1].grid(True)
     problem_num = sys.argv[1] if len(sys.argv) > 1 else "5"
@@ -139,29 +139,29 @@ if __name__ == "__main__":
     predicted_Py = np.array(mpc_controller.predicted_Py)
 
     fig, axes = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
-    axes[0].plot(t, predicted_x_mpc[:, 0], label='Predicted Tank 1', color='dodgerblue', ls='-.' )
-    axes[0].plot(t, predicted_x_mpc[:, 1], label='Predicted Tank 2', color='tomato', ls='-.' )
+    axes[0].plot(t/60, predicted_x_mpc[:, 0], label='Predicted Tank 1', color='dodgerblue', ls='-.' )
+    axes[0].plot(t/60, predicted_x_mpc[:, 1], label='Predicted Tank 2', color='tomato', ls='-.' )
 
-    axes[0].fill_between(t, predicted_x_mpc[:, 0] - 2*np.sqrt(predicted_Px[:, 0, 0]), predicted_x_mpc[:, 0] + 2*np.sqrt(predicted_Px[:, 0, 0]), color='dodgerblue', alpha=0.2)
-    axes[0].fill_between(t, predicted_x_mpc[:, 1] - 2*np.sqrt(predicted_Px[:, 1, 1]), predicted_x_mpc[:, 1] + 2*np.sqrt(predicted_Px[:, 1, 1]), color='tomato', alpha=0.2)
+    axes[0].fill_between(t/60, predicted_x_mpc[:, 0] - 2*np.sqrt(predicted_Px[:, 0, 0]), predicted_x_mpc[:, 0] + 2*np.sqrt(predicted_Px[:, 0, 0]), color='dodgerblue', alpha=0.2)
+    axes[0].fill_between(t/60, predicted_x_mpc[:, 1] - 2*np.sqrt(predicted_Px[:, 1, 1]), predicted_x_mpc[:, 1] + 2*np.sqrt(predicted_Px[:, 1, 1]), color='tomato', alpha=0.2)
     
-    axes[0].plot(t, x[0, :], label='Actual Tank 1', color='dodgerblue')
-    axes[0].plot(t, x[1, :], label='Actual Tank 2', color='tomato')
+    axes[0].plot(t/60, x[0, :], label='Actual Tank 1', color='dodgerblue')
+    axes[0].plot(t/60, x[1, :], label='Actual Tank 2', color='tomato')
     
     axes[0].legend()
     axes[0].set_ylabel('mass [kg]')
     axes[0].grid(True)
     axes[0].set_title('System states')
     
-    axes[1].plot(t, predicted_y_mpc[:, 0], label='Predicted Output Tank 1', color='dodgerblue', ls='-.' )
-    axes[1].plot(t, predicted_y_mpc[:, 1], label='Predicted Output Tank 2', color='tomato', ls='-.' )
+    axes[1].plot(t/60, predicted_y_mpc[:, 0], label='Predicted Output Tank 1', color='dodgerblue', ls='-.' )
+    axes[1].plot(t/60, predicted_y_mpc[:, 1], label='Predicted Output Tank 2', color='tomato', ls='-.' )
     
 
-    axes[1].fill_between(t, predicted_y_mpc[:, 0] - 2*np.sqrt(predicted_Py[:, 0, 0]), predicted_y_mpc[:, 0] + 2*np.sqrt(predicted_Py[:, 0, 0]), color='dodgerblue', alpha=0.2)
-    axes[1].fill_between(t, predicted_y_mpc[:, 1] - 2*np.sqrt(predicted_Py[:, 1, 1]), predicted_y_mpc[:, 1] + 2*np.sqrt(predicted_Py[:, 1, 1]), color='tomato', alpha=0.2)
+    axes[1].fill_between(t/60, predicted_y_mpc[:, 0] - 2*np.sqrt(predicted_Py[:, 0, 0]), predicted_y_mpc[:, 0] + 2*np.sqrt(predicted_Py[:, 0, 0]), color='dodgerblue', alpha=0.2)
+    axes[1].fill_between(t/60, predicted_y_mpc[:, 1] - 2*np.sqrt(predicted_Py[:, 1, 1]), predicted_y_mpc[:, 1] + 2*np.sqrt(predicted_Py[:, 1, 1]), color='tomato', alpha=0.2)
     
-    axes[1].plot(t, h[0, :], label='Actual Tank 1', color='dodgerblue')
-    axes[1].plot(t, h[1, :], label='Actual Tank 2', color='tomato')
+    axes[1].plot(t/60, h[0, :], label='Actual Tank 1', color='dodgerblue')
+    axes[1].plot(t/60, h[1, :], label='Actual Tank 2', color='tomato')
     
     axes[1].legend()
     axes[1].grid(True)
