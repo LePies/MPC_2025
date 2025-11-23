@@ -14,7 +14,17 @@ class MPC:
     """
     def __init__(
         self,
-        x0, w0, N, U_bar, R_bar, G, A, B, C, Q, R,
+        x0, 
+        w0, 
+        N, 
+        U_bar, 
+        R_bar, 
+        G, 
+        A, 
+        B, 
+        C, 
+        Q, 
+        R,
         u0 = None,
         problem="Problem 5",
         Wz=None,
@@ -30,6 +40,7 @@ class MPC:
         Dmax = None,
         Rmax = None,
         Rmin = None,
+        hadd = np.zeros(2),
     ) -> None:
         """
         Initialize the MPC controller.
@@ -69,12 +80,15 @@ class MPC:
         Wdu : numpy.ndarray, optional
             Input rate weighting matrix (nu x nu). Default: identity
         """
+        self.problem = problem
+        self.hadd = hadd
+        self._initialize()
+
         self.N = N
-        self.U_bar = U_bar.flatten()  # Flatten to (N*nu,) vector
-        self.R_bar = R_bar.flatten()  # Flatten to (N*ny,) vector
+        self.U_bar = self._compute_Ubar(U_bar)  # Flatten to (N*nu,) vector
+        self.R_bar = self._compute_Rbar(R_bar)  # Flatten to (N*ny,) vector
         self.w0 = w0
         self.wk = self.w0
-        self.problem = problem
         self.Wz = Wz
         self.Wu = Wu
         self.Wdu = Wdu
@@ -86,14 +100,16 @@ class MPC:
         self.R = R
         self.x0 = x0
         self.xk = self.x0
-        if self.problem == "Problem 4":
-            self.xk = self.xk[:4]
         self.noutput = C.shape[0]  # Number of outputs (ny)
         self.ninput = B.shape[1]   # Number of inputs (nu) - FIXED: Added to track input dimension shape of Uk and Umin, Umax
         self.u0 = u0
         self.uk = self.compute_uk()
         self.Rmax = Rmax
         self.Rmin = Rmin
+        self.predicted_x_mpc = []
+        self.predicted_y_mpc = []
+        self.predicted_Px = []
+        self.predicted_Py = []
         
         # Pre-compute matrices that don't change during runtime
         self.Gamma = self.compute_gamma()  # Markov parameter matrix for output prediction
@@ -111,6 +127,45 @@ class MPC:
         self.Ws1, self.Ws2 = self.compute_Ws(Ws1, Ws2)
         self.Wt1, self.Wt2 = self.compute_Wt(Wt1, Wt2)
 
+        self.set_xk(x0)
+
+    def _initialize(self):
+        if self.problem == "Problem 4":
+            self.uadd = np.array([250, 325])
+
+        else:
+            self.uadd = np.zeros(2)
+
+    def set_xk(self, xk):
+        if self.problem == "Problem 4":
+            self.xk = xk
+            self.xk_mpc = np.zeros(4)
+
+            if self.Rmin is not None:
+                self.Rmin = self.Rmin - np.tile(self.hadd, self.N)
+            if self.Rmax is not None:
+                self.Rmax = self.Rmax - np.tile(self.hadd, self.N)
+            if self.Umin is not None:
+                self.Umin = self.Umin - np.tile(self.uadd, self.N)
+            if self.Umax is not None:
+                self.Umax = self.Umax - np.tile(self.uadd, self.N)
+        else:
+            self.xk = xk
+            self.xk_mpc = xk
+        self.predicted_x_mpc.append(self.xk_mpc)
+        self.predicted_y_mpc.append(self.C@self.xk_mpc)
+        self.predicted_Px.append(self.Pk)
+        self.predicted_Py.append(self.C@self.Pk@self.C.T)
+    def _compute_Rbar(self, Rbar):
+        if self.problem == "Problem 4":
+            return (Rbar - self.hadd).flatten()
+        else:
+            return Rbar.flatten()
+    def _compute_Ubar(self, Ubar):
+        if self.problem == "Problem 4":
+            return (Ubar - self.uadd).flatten()
+        else:
+            return Ubar.flatten()
     def set_umin(self, Umin):
         self.Umin = self.compute_Umin(Umin)
     def set_umax(self, Umax):
@@ -262,42 +317,96 @@ class MPC:
         Gamma relates future inputs to outputs: y = Gamma * u
         This matrix contains the system's impulse response (Markov parameters).
         
-        Parameters:
-        -----------
-        N : int
-            Prediction horizon length
-        problem : str
-            "Problem 5" or "Problem 4" - determines which data file to load
-            
+        For Problem 4: Computes Markov parameters directly from Hankel-identified A, B, C, D
+        For Problem 5: Loads pre-computed Markov parameters from file
+        
         Returns:
         --------
         Gamma : numpy.ndarray
             Markov parameter matrix (N*ny x N*nu)
         """
-        # Load pre-computed Markov parameters from file
-        if self.problem == "Problem 5":
+        if self.problem == "Problem 4":
+            # Compute Markov parameters directly from Hankel-identified system
+            # H_0 = D, H_k = C * A^(k-1) * B for k >= 1
+            D = np.zeros((self.noutput, self.ninput))  # D matrix (usually zero for Problem 4)
+            # Check if D is stored, otherwise assume zero
+            try:
+                data = np.load("Results/Problem4/Problem_4_estimates.npz")
+                if "D" in data:
+                    D = data["D"]
+            except:
+                pass
+            
+            # Compute Markov parameters: H_k = C * A^(k-1) * B for k >= 1
+            # H_0 = D
+            markov_params = []
+            markov_params.append(D)  # H_0
+            
+            A_pow = np.eye(self.A.shape[0])  # A^0 = I
+            for k in range(1, self.N + 1):
+                H_k = self.C @ A_pow @ self.B
+                markov_params.append(H_k)
+                A_pow = self.A @ A_pow  # A^k
+            
+            # Convert to array format: (N+1, ny, nu)
+            markov_array = np.array(markov_params)  # Shape: (N+1, ny, nu)
+            
+            # Reshape for Gamma matrix construction: (ny, nu*(N+1))
+            markov_mat_test = markov_array.transpose(1, 0, 2).reshape(self.noutput, -1)
+            
+        elif self.problem == "Problem 5":
+            # Load pre-computed Markov parameters from file
             data = np.load("Results/Problem5/Problem_5_estimates.npz")
-        elif self.problem == "Problem 4":
-            data = np.load("Results/Problem4/Problem_4_estimates.npz")
+            markov_mat = data["markov_mat"]
+            # Reshape Markov parameters for easier indexing
+            markov_mat_test = markov_mat[:, :, :self.N].reshape(2, -1)
         else:
             raise ValueError("Invalid problem")
 
-        markov_mat = data["markov_mat"]
-
-        # Reshape Markov parameters for easier indexing
-        markov_mat_test = markov_mat[:, :, :self.N].reshape(2, -1)
-
         # Initialize Gamma matrix
-        Gamma = np.zeros((2*self.N, 2*self.N))
+        Gamma = np.zeros((self.N*self.noutput, self.N*self.ninput))
         
         # Build Gamma matrix: each column block corresponds to one input time step
         # The structure creates a lower-triangular Toeplitz-like matrix
-        for i in range(self.N):
-            markov_input = markov_mat_test[:, :2*(self.N-i)]
-            markov_input = np.block([
-                [np.zeros((2, 2*i)), markov_input]
-            ])
-            Gamma[:, 2*i:2*i+2] = markov_input.T
+        # For column block i (input at time i):
+        #   - Rows 0 to i-1: zeros (input hasn't affected outputs yet)
+        #   - Rows i to N-1: H_1, H_2, ..., H_{N-i} (Markov parameters)
+        # So: Gamma[j*ny:(j+1)*ny, i*nu:(i+1)*nu] = H_{j-i+1} if j >= i, else 0
+        
+        if self.problem == "Problem 4":
+            # For Problem 4, use computed markov_array
+            # markov_array[0] = H_0 = D (not used in Gamma, as we start from H_1)
+            # markov_array[k] = H_k = C * A^(k-1) * B for k >= 1
+            
+            for i in range(self.N):  # Column block i (input at time i)
+                # Get Markov parameters H_1, H_2, ..., H_{N-i}
+                markov_col = []
+                for k in range(1, self.N - i + 1):  # H_1 to H_{N-i}
+                    markov_col.append(markov_array[k])
+                
+                if len(markov_col) > 0:
+                    # Stack Markov parameters: shape (N-i, ny, nu)
+                    markov_block = np.stack(markov_col, axis=0)  # (N-i, ny, nu)
+                    # Reshape to (ny*(N-i), nu)
+                    markov_reshaped = markov_block.transpose(1, 0, 2).reshape(
+                        self.noutput, -1
+                    )  # (ny, nu*(N-i))
+                    
+                    # Pad with zeros at the beginning (for rows 0 to i-1)
+                    markov_padded = np.block([
+                        [np.zeros((self.noutput, self.ninput*i)), markov_reshaped]
+                    ])  # (ny, nu*N)
+                    
+                    # Transpose and place in Gamma matrix
+                    Gamma[:, self.ninput*i:self.ninput*(i+1)] = markov_padded.T
+        else:
+            # For Problem 5, use the original method
+            for i in range(self.N):
+                markov_input = markov_mat_test[:, :self.ninput*(self.N-i)]
+                markov_input_padded = np.block([
+                    [np.zeros((self.noutput, self.ninput*i)), markov_input]
+                ])
+                Gamma[:, self.ninput*i:self.ninput*(i+1)] = markov_input_padded.T
 
         return Gamma
     
@@ -367,7 +476,7 @@ class MPC:
 
         # Compute predicted output based on current state and disturbance
         # bk = predicted output without control action
-        bk = self.phi_x.T@self.xk + self.phi_w.T@self.wk
+        bk = self.phi_x.T@self.xk_mpc + self.phi_w.T@self.wk
 
         # Compute tracking error: difference between reference and predicted output
         ck = self.R_bar - bk
@@ -462,7 +571,7 @@ class MPC:
 
         # Solve unconstrained QP: minimize 0.5*u^T*H*u + g^T*u
         # No constraints: l=-inf, u=inf, A=0 (no equality/inequality constraints)
-
+        
         ufin, info = qpsolver(H, g, l, u, self.Lamb, bl, bu, u_init)
 
         # Reshape solution: from (N*nu,) to (nu x N) matrix
@@ -490,7 +599,7 @@ class MPC:
         Wu_bar = self.kron(Wu)
         Wdu_bar = self.kron(Wdu)
 
-        bk = self.phi_x.T@self.xk + self.phi_w.T@self.wk
+        bk = self.phi_x.T@self.xk_mpc + self.phi_w.T@self.wk
         ck = self.R_bar - bk
 
         # Input Hessian: input, input rate, and output tracking terms
@@ -620,10 +729,9 @@ class MPC:
             Updated state estimate (nx x 1)
         """
         xk_new, Pk_new = KalmanFilterUpdate(
-            xt=self.xk,      # Current state estimate
-            dt=self.wk,      # Current disturbance estimate
+            xt=self.xk_mpc,      # Current state estimate
             ut=self.uk,      # Current input
-            yt=zk,           # Current measurement
+            yt=zk - self.hadd,           # Current measurement
             A=self.A,        # State transition matrix
             B=self.B,        # Input matrix
             C=self.C,        # Output matrix
@@ -654,7 +762,11 @@ class MPC:
             Optimal input to apply (nu x 1)
         """
         # Update state estimate with new measurement
-        self.xk = self.KalmanFilterUpdate(zk)
+        self.xk_mpc = self.KalmanFilterUpdate(zk)
+        self.predicted_x_mpc.append(self.xk_mpc)
+        self.predicted_y_mpc.append(self.C@self.xk_mpc)
+        self.predicted_Px.append(self.Pk)
+        self.predicted_Py.append(self.C@self.Pk@self.C.T + self.R)
 
         if self.xk.shape[0] > 4:
             self.wk = self.wk[-2:]
@@ -664,4 +776,4 @@ class MPC:
 
         # Apply first input from optimal sequence (receding horizon)
         self.uk = ufin[:, 0]
-        return self.uk
+        return self.uk + self.uadd

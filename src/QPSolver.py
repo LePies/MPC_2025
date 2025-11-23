@@ -88,31 +88,9 @@ def qpsolver(H, g, l = None, u = None, A = None, bl = None, bu = None, xinit = N
         raise ValueError("Hessian matrix H contains NaN or Inf values")
     if np.any(np.isnan(g)) or np.any(np.isinf(g)):
         raise ValueError("Gradient vector g contains NaN or Inf values")
-    
-    # Check if Hessian is positive definite (required for QP)
-    try:
-        eigenvals = np.linalg.eigvals(H)
-        if np.any(eigenvals <= 0):
-            # Make Hessian positive definite by adding small regularization
-            min_eigenval = np.min(eigenvals)
-            if min_eigenval <= 0:
-                H = H + (abs(min_eigenval) + 1e-6) * np.eye(H.shape[0])
-    except (np.linalg.LinAlgError, ValueError):
-        pass  # If eigendecomposition fails, proceed anyway
-
     # Get dimensions
     n = H.shape[0]  # number of variables
     m = A.shape[0] if A.size > 0 else 0  # number of constraints
-    
-    # Validate constraint dimensions
-    if m > 0:
-        if bl.shape[0] != m or bu.shape[0] != m:
-            raise ValueError(f"Constraint bounds dimension mismatch: A has {m} rows, but bl/bu have {bl.shape[0]}/{bu.shape[0]} elements")
-        if A.shape[1] != n:
-            raise ValueError(f"Constraint matrix dimension mismatch: A is {A.shape}, but H is {H.shape}")
-        # Check for infeasible constraints
-        if np.any(bl > bu):
-            raise ValueError("Infeasible constraints: some lower bounds are greater than upper bounds")
 
     # Convert matrices to CasADi format
     H_ca = ca.DM(H)
@@ -156,53 +134,65 @@ def qpsolver(H, g, l = None, u = None, A = None, bl = None, bu = None, xinit = N
 
     # Create QP solver and solve (suppress any output including license info)
     # Using 'qpoases' solver (other options: 'osqp', 'hpipm', etc.)
-    try:
-        with suppress_stdout_stderr():
-            solver = ca.qpsol('solver', 'qpoases', qp, {'error_on_fail': False})
-            sol = solver(
+    solver = None
+    sol = None
+    solver_success = False
+    with suppress_stdout_stderr():
+        # Try qpoases first
+        solver = ca.qpsol('solver', 'qpoases', qp, {'error_on_fail': False})
+        sol = solver(
+            x0=xinit,
+            lbx=lbx,
+            ubx=ubx,
+            lbg=lbg,
+            ubg=ubg
+        )
+        
+        # Check if solver succeeded
+        stats = solver.stats()
+        solver_success = stats.get('success', False)
+        
+        if not solver_success:
+            # Try with OSQP as fallback if qpoases fails
+            # OSQP options: increase max_iter and set error_on_fail to False
+            osqp_opts = {
+                'error_on_fail': False,
+                'osqp': {
+                    'max_iter': 10000,  # Increase max iterations
+                    'eps_abs': 1e-3,
+                    'eps_rel': 1e-3,
+                    'adaptive_rho': True,
+                    'polish': True,
+                    'verbose': False  # Disable verbose output
+                }
+            }
+            solver_osqp = ca.qpsol('solver_osqp', 'osqp', qp, osqp_opts)
+            sol = solver_osqp(
                 x0=xinit,
                 lbx=lbx,
                 ubx=ubx,
                 lbg=lbg,
                 ubg=ubg
             )
-            
-            # Check if solver succeeded
-            if not solver.stats()['success']:
-                # Try with OSQP as fallback if qpoases fails
-                solver_osqp = ca.qpsol('solver_osqp', 'osqp', qp)
-                sol = solver_osqp(
-                    x0=xinit,
-                    lbx=lbx,
-                    ubx=ubx,
-                    lbg=lbg,
-                    ubg=ubg
-                )
-    except Exception as e:
-        # If solver fails, provide more informative error
-        error_msg = f"QP solver failed: {str(e)}\n"
-        error_msg += f"Problem dimensions: n={n}, m={m}\n"
-        error_msg += f"H shape: {H.shape}, H condition number: {np.linalg.cond(H):.2e}\n"
-        if m > 0:
-            error_msg += f"A shape: {A.shape}\n"
-            error_msg += f"bl range: [{np.min(bl):.2e}, {np.max(bl):.2e}]\n"
-            error_msg += f"bu range: [{np.min(bu):.2e}, {np.max(bu):.2e}]\n"
-        raise RuntimeError(error_msg) from e
+            stats_osqp = solver_osqp.stats()
+            solver_success = stats_osqp.get('success', False)
+            solver = solver_osqp  # Use OSQP solver for stats
 
     # Extract solution
     x_opt = np.array(sol['x']).flatten()
 
     # Extract solver information
+    stats_dict = solver.stats() if solver and hasattr(solver, 'stats') else {}
     info = {
-        'f': float(sol['f']),  # Objective value
+        'f': float(sol['f']) if 'f' in sol else np.nan,  # Objective value
         # Dual variables for bounds
         'lam_x': (np.array(sol['lam_x']).flatten()
                   if 'lam_x' in sol else None),
         # Dual variables for constraints
         'lam_g': (np.array(sol['lam_g']).flatten()
                   if 'lam_g' in sol else None),
-        'success': True,  # CasADi solvers typically don't fail silently
-        'stats': solver.stats() if hasattr(solver, 'stats') else {}
+        'success': solver_success,  # Actual solver success status
+        'stats': stats_dict
     }
 
     return x_opt, info
