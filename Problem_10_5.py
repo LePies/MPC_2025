@@ -64,7 +64,7 @@ if __name__ == "__main__":
 
     # MPC parameters
     N_mpc = 15  # Prediction horizon - longer horizon improves long-term prediction
-    N_t = 500   # Simulation time steps
+    N_t = 2000   # Simulation time steps
 
     # For Problem 5: Use absolute values
     U_bar = np.ones((N_mpc, 2)) * u_op
@@ -147,7 +147,7 @@ if __name__ == "__main__":
     axes[1].set_xlabel('Time [s]')
     axes[1].set_ylabel('Flow [m³/s]')
     axes[1].grid(True)
-    fig.savefig(f'figures/Problem10/Problem_10_Heights_4.png')
+    fig.savefig(f'figures/Problem10/Problem_10_Heights_5.png')
     plt.close()
 
     predicted_x_mpc = np.array(mpc_controller.predicted_x_mpc)

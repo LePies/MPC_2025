@@ -51,7 +51,7 @@ if __name__ == "__main__":
 
     # Tuned MPC parameters for better performance
     N_mpc = 15  # Increased prediction horizon
-    N_t = 500
+    N_t = 2000
 
     # For Problem 5: Use absolute values
     U_bar = np.ones((N_mpc, 2)) * u_op
