@@ -98,8 +98,8 @@ for t_idx,t_val in enumerate(t[:-1]):
         zt = discrete_output_update(Cz, xt, V[t_idx][:-2]) 
         
     else:
-        yt = Model_Stochastic.StateSensor(xt[:4])
-        zt = yt[:2]
+        yt = Model_Stochastic.StateSensor(xt[:4]) ## _y_ = C_x_ = C(x - xs) = Cx0 - Cxs = y - ys
+        zt = yt[:2] # in normalized
 
     # Designed with linear system 
     xt_hat, P = KalmanFilterUpdate(xt_hat, us*0, zt, A_use, B_use, C_use, P, Q_use, R[:2,:2], stationary=static)

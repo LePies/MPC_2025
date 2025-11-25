@@ -94,7 +94,7 @@ class MPC:
         self.Wdu = Wdu
         self.C = C
         self.A = A
-        self.G = G
+        self.G = G # or E
         self.B = B
         self.Q = Q
         self.R = R
@@ -119,8 +119,8 @@ class MPC:
         self.Pk = self.compute_Pk()        # Initial covariance matrix for Kalman filter
         self.Umin = self.compute_Umin(Umin)
         self.Umax = self.compute_Umax(Umax)
-        self.Dmin = self.compute_Dmin(Dmin)
-        self.Dmax = self.compute_Dmax(Dmax)
+        self.Dmin = self.compute_Dmin(Dmin) # delta u min
+        self.Dmax = self.compute_Dmax(Dmax) # delta u max
         self.Rmax = self.compute_Rmax(Rmax)
         self.Rmin = self.compute_Rmin(Rmin)
         self.I0 = self.compute_I0()
@@ -130,52 +130,47 @@ class MPC:
         self.set_xk(x0)
 
     def _initialize(self):
-        if self.problem == "Problem 4":
-            self.uadd = np.array([250, 325])
-
-        else:
-            self.uadd = np.zeros(2)
+        self.uadd = np.array([250, 325])
 
     def set_xk(self, xk):
-        if self.problem == "Problem 4":
-            self.xk = xk
-            self.xk_mpc = np.zeros(4)
+        self.xk = xk
+        self.xk_mpc = np.zeros(self.A.shape[0]) # xk_mpc = 0
 
-            if self.Rmin is not None:
-                self.Rmin = self.Rmin - np.tile(self.hadd, self.N)
-            if self.Rmax is not None:
-                self.Rmax = self.Rmax - np.tile(self.hadd, self.N)
-            if self.Umin is not None:
-                self.Umin = self.Umin - np.tile(self.uadd, self.N)
-            if self.Umax is not None:
-                self.Umax = self.Umax - np.tile(self.uadd, self.N)
-        else:
-            self.xk = xk
-            self.xk_mpc = xk
+        if self.Rmin is not None:
+            self.Rmin = self.Rmin - np.tile(self.hadd, self.N)
+        if self.Rmax is not None:
+            self.Rmax = self.Rmax - np.tile(self.hadd, self.N)
+        if self.Umin is not None:
+            self.Umin = self.Umin - np.tile(self.uadd, self.N)
+        if self.Umax is not None:
+            self.Umax = self.Umax - np.tile(self.uadd, self.N)
+
         self.predicted_x_mpc.append(self.xk_mpc)
         self.predicted_y_mpc.append(self.C@self.xk_mpc)
         self.predicted_Px.append(self.Pk)
         self.predicted_Py.append(self.C@self.Pk@self.C.T)
+
     def _compute_Rbar(self, Rbar):
-        if self.problem == "Problem 4":
-            return (Rbar - self.hadd).flatten()
-        else:
-            return Rbar.flatten()
+        return (Rbar - self.hadd).flatten()
+
     def _compute_Ubar(self, Ubar):
-        if self.problem == "Problem 4":
-            return (Ubar - self.uadd).flatten()
-        else:
-            return Ubar.flatten()
+        return (Ubar - self.uadd).flatten()
+
     def set_umin(self, Umin):
         self.Umin = self.compute_Umin(Umin)
+
     def set_umax(self, Umax):
         self.Umax = self.compute_Umax(Umax)
+
     def set_dmin(self, Dmin):
         self.Dmin = self.compute_Dmin(Dmin)
+
     def set_dmax(self, Dmax):
         self.Dmax = self.compute_Dmax(Dmax)
+
     def set_rmax(self, Rmax):
         self.Rmax = self.compute_Rmax(Rmax)
+
     def set_rmin(self, Rmin):
         self.Rmin = self.compute_Rmin(Rmin)
 
@@ -423,6 +418,7 @@ class MPC:
                     Lamb[row_idx, row_idx] = 1.0  # Current input
                     Lamb[row_idx, (i-1)*self.ninput + j] = -1.0  # Previous input (same input channel)
         return Lamb
+
     def compute_I0(self):
         I0 = np.block([np.eye(self.ninput) if i == 0 else np.zeros((self.ninput, self.ninput)) for i in range(self.N)]).T
         return I0
@@ -731,7 +727,7 @@ class MPC:
         xk_new, Pk_new = KalmanFilterUpdate(
             xt=self.xk_mpc,      # Current state estimate
             ut=self.uk,      # Current input
-            yt=zk - self.hadd,           # Current measurement
+            yt=zk - self.hadd,           # Current measurement # hadd = hs = ys[:2]
             A=self.A,        # State transition matrix
             B=self.B,        # Input matrix
             C=self.C,        # Output matrix
@@ -763,6 +759,7 @@ class MPC:
         """
         # Update state estimate with new measurement
         self.xk_mpc = self.KalmanFilterUpdate(zk)
+
         self.predicted_x_mpc.append(self.xk_mpc)
         self.predicted_y_mpc.append(self.C@self.xk_mpc)
         self.predicted_Px.append(self.Pk)
