@@ -30,7 +30,7 @@ D = data["D"]  # D matrix (same for discrete and continuous)
 G = data["G"]
 Dd = data["Dd"]
 
-# Use discrete-time simulation (more accurate since system is discrete-time)
+# Use discrete-time simulation (more accurate since system is discrete-time) 
 A = np.block([
     [A,              G],
     [np.zeros((G.shape[1], A.shape[0])), np.eye(G.shape[1])]
@@ -68,7 +68,7 @@ xs_op = Model.GetSteadyState(np.array([0, 0, 0, 0]), u_op, d_op)
 hs_op = xs_op / (rho * np.array([A1, A2, A3, A4]))  # Operating point heights
 
 # Create oscillating input
-# Oscillating around operating point: u(t) = u_op + amplitude * sin(2*pi*frequency*t)
+# Oscillating around operating point: u(t) = u_op + amplitude * sin(2*pi*frequency*t) 
 amplitude = np.array([200, 150])  # Oscillation amplitude for each input
 frequency = 0.01  # Frequency in Hz (oscillation period = 1/frequency seconds)
 
@@ -88,8 +88,8 @@ u_dev_array = u_new_array - u_op[:, None]
 # Initial condition: deviation from operating point (0 if starting at steady state)
 x0_Hankel = np.zeros(A.shape[0])  # Start at operating point steady state
 
-# Simulate Hankel system with oscillating deviations using discrete-time solver
-# The system is discrete-time (identified from discrete-time Markov parameters)
+# Simulate Hankel system with oscillating deviations using discrete-time solver 
+# The system is discrete-time (identified from discrete-time Markov parameters) 
 # Pass time-varying input array
 t_Hankel, y_Hankel, x_Hankel = Hankel.Simulation(x0_Hankel, u_dev_array, t_span, delta_t, discrete_time=True)
 
@@ -97,7 +97,7 @@ t_Hankel, y_Hankel, x_Hankel = Hankel.Simulation(x0_Hankel, u_dev_array, t_span,
 print("Eigenvalues of Hankel system:", Hankel.GetEigenvalues())
 # OpenLoop expects u to be 2D array (n_inputs, n_time_steps)
 # Use the oscillating input array (already created above)
-u_array = u_new_array[:, :n_steps]  # Match the number of steps OpenLoop expects
+u_array = u_new_array[:, :n_steps]  # Match the number of steps OpenLoop expects 
 d_array_original = np.tile(d_op.reshape(-1, 1), (1, n_steps))
 
 
@@ -109,13 +109,13 @@ for i, step in enumerate([0.25, 0.0]):
 
     t, x, u, d, h = Model.OpenLoop((t_span[0], t_span[1]), xs_op, u_array, d_array)
 
-    # Calculate output deviations from operating point for FourTankSystem
-    # h are heights (4 values), we need deviations and then apply StateOutput
+    # Calculate output deviations from operating point for FourTankSystem 
+    # h are heights (4 values), we need deviations and then apply StateOutput 
     h_dev = h - hs_op[:, None]  # Deviations from operating point
-    y_model = Model.StateOutput(h_dev)  # Get 2 outputs (tanks 1 and 2)
+    y_model = Model.StateOutput(h_dev)  # Get 2 outputs (tanks 1 and 2) 
 
 
-    xt_hat = np.zeros(A.shape[0])
+    xt_hat = np.zeros(A.shape[0]) 
     x_hankel = np.zeros(A.shape[0])
     P = np.eye(A.shape[0])
     Q = data_prob5["Q"]
@@ -142,21 +142,21 @@ for i, step in enumerate([0.25, 0.0]):
     abs_step = d_op[0]*step
 
     for (i_t, t_val) in enumerate(t[:-1]):
-        zt = y_model[:, i_t]  # Use the 2-output measurement (tanks 1 and 2) from StateOutput
+        zt = y_model[:, i_t]  # Use the 2-output measurement (tanks 1 and 2) from StateOutput  
         u = u_dev_array[:, i_t]
         xt_hat, P = KalmanFilterUpdate(xt = xt_hat, ut = u, yt = zt, A = A, B = B, C = C, P = P, Q = Q, R = R, stationary=static)
         X_kalman[i_t, :] = xt_hat
 
         P_est[i_t, :, :] = P
         # if i == idx_mod:
-        #     x_hankel[2] = x_hankel[2] + abs_step
+        #     x_hankel[2] = x_hankel[2] + abs_step 
         x_hankel = A@x_hankel + B@u
         X_hankel[i_t+1, :] = x_hankel
 
         yt = C@x_hankel + D@u
         Y_est[i_t+1, :] = C@xt_hat + D@u
 
-    # Compute output covariance for each time step
+    # Compute output covariance for each time step 
     Py_est = np.zeros((len(t), C.shape[0], C.shape[0]))
     for i_t in range(len(t)):
         Py_est[i_t, :, :] = C @ P_est[i_t, :, :] @ C.T

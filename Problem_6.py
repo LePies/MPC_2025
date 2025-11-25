@@ -67,7 +67,7 @@ Z_est = np.zeros([N-1,2])
 W = np.random.multivariate_normal(mean=np.zeros(A_est.shape[0]), cov=Q, size=N)
 V = np.random.multivariate_normal(mean=np.zeros(R.shape[0]), cov=R, size=N)
 X_true = np.zeros([N, 4])  
-
+ 
 linear = 0
 static = 1
 Hankel = 0
@@ -176,5 +176,5 @@ ax[i].set_xlabel('Time')
 fig.suptitle("Control input and disturbance estimated using discrete time Kalman filter with nonlinear system", fontsize=16)
 plt.tight_layout(pad=2)
 
-plt.savefig(f"figures/Problem6/KF_5_D_vary_input_nonlinear.png")
+plt.savefig(f"figures/Problem6_5/KF_5_D_vary_input_nonlinear.png")
 plt.close()

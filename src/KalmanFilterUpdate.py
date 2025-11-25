@@ -14,7 +14,7 @@ def solve_riccati(A,C,R,Q) -> np.ndarray:
 
     return Ps
 
-def KalmanFilterUpdate(
+def KalmanFilterUpdate_old(
     xt:float,
     ut:float,
     yt:float,
@@ -44,6 +44,35 @@ def KalmanFilterUpdate(
     return xtp1, P
 
 
+def KalmanFilterUpdate(
+    xt:float,
+    ut:float,
+    yt:float,
+    A:np.ndarray,
+    B:np.ndarray,
+    C:np.ndarray,
+    P:np.ndarray,
+    Q:np.ndarray,
+    R:np.ndarray,
+    stationary:bool=True
+) -> float:
+
+    kappa = P@C.T@np.linalg.inv(C@P@C.T + R)
+
+    if stationary:
+        try:
+            P = solve_riccati(A,C,R,Q)
+        except np.linalg.LinAlgError:
+            # Fall back to non-stationary update if DARE solver fails
+            # (e.g., when system has eigenvalues on unit circle)
+            P = A@(P-kappa@C@P)@A.T+Q
+    else:
+        P = A@(P-kappa@C@P)@A.T+Q
+
+    xtp1 = A@xt+B@ut # predict 
+    xtp1 = xtp1 + kappa@(yt - C@xtp1) # update
+
+    return xtp1, P
 
 
 

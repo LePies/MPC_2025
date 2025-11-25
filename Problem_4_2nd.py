@@ -66,7 +66,7 @@ print("]")
 
 F1 = 250
 F2 = 325
-
+ 
 
 def G(s): 
     G = np.array([
