@@ -55,7 +55,7 @@ Ad, Bd, Ed, C, Cz = Model_Stochastic.LinearizeDiscreteTime(xs_true, ds, Ts)
 Tf = 500
 N = int(Tf/delta_t)
 t = np.arange(0, Tf, delta_t)
-linear = 0
+linear = 1
 static = 1
 Hankel = 0
 disturbance_change = 1
@@ -75,10 +75,10 @@ A_use, B_use, C_use, Q_use = augment_system(A_use, B_use, C_use, E_use, Q)
 
 P = 5*np.eye(A_use.shape[0])  # Initial estimate error covariance 
 
-xt = x0.copy()-xs_true.copy()
+xt = xs_true.copy()-xs_true.copy()
 x0 = np.concatenate((x0, ds))
 xs = np.concatenate((xs_true, ds))
-xt_hat = x0.copy()-xs.copy()
+xt_hat = xs.copy()-xs.copy()
 
 X = np.zeros([N-1,4])
 Z = np.zeros([N-1,2])
