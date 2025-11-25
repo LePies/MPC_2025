@@ -99,7 +99,7 @@ class HankelSystem:
         # Initialize state and output arrays
         n_states = len(x0)
         n_outputs = self.C.shape[0]
-        x = np.zeros((n_states, n_steps + 1))
+        x = np.zeros((n_states, n_steps + 1)) 
         y = np.zeros((n_outputs, n_steps + 1))
         
         # Set initial condition
@@ -127,7 +127,7 @@ class HankelSystem:
             else:
                 u_k = u_col[:, k] if k < u_col.shape[1] else u_col[:, -1]
             
-            # Discrete-time update: x[k+1] = A*x[k] + B*u[k]
+            # Discrete-time update: x[k+1] = A*x[k] + B*u[k] 
             x[:, k+1] = self.A @ x[:, k] + self.B @ u_k
             
             # Output: y[k+1] = C*x[k+1] + D*u[k+1]'

@@ -175,7 +175,7 @@ class FourTankSystem:
         self.CheckInputDimension(states, d)
 
         t0 = tspan[0]
-        tf = tspan[1]
+        tf = tspan[1] 
         t_array = np.arange(t0, tf, self.delta_t)
 
         states, is_deterministic = self.SetLoopStates(states, d)
@@ -192,10 +192,10 @@ class FourTankSystem:
 
         for i in tqdm.tqdm(range(1, t_array.shape[0]), desc="Simulating closed loop", unit="step", leave=True, ncols=80):
             zt = self.StateOutput(h_array[:, i-1])
-            # if controller is an array, select the appropriate controller for the current step
+            # if controller is an array, select the appropriate controller for the current step 
             if isinstance(controller, (list, tuple, np.ndarray)):
                 ut = controller[:, i-1]
-            else:
+            else: 
                 ut = controller.update(zt)
             sol = solve_ivp(f, (t_array[i-1], t_array[i]), states_array[:, i-1], method='RK45',args = (ut,))
             state_new = sol.y[:, -1]
