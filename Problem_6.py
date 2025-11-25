@@ -47,7 +47,7 @@ x0, us, ds, p , R, R_d, delta_t = initialize()
 Model_Stochastic = FourTankSystem(R_s=R, R_d=R_d*0, p=p, delta_t=delta_t,F3=F3_func,F4=F4_func)
 
 # Discrete Kalman filter parameters 
-x0 = np.concatenate((x0, ds))  
+x0 = np.concatenate((x0, ds))
 xs = Model_Stochastic.GetSteadyState(x0, us)
 Ad, Bd, Ed, C, Cz = Model_Stochastic.LinearizeDiscreteTime(xs, ds, Ts)
 
@@ -57,7 +57,7 @@ Tf = 500
 N = int(Tf/delta_t)
 t = np.arange(0, Tf, delta_t)
 xt = x0.copy()-xs.copy()
-xt_hat = x0.copy()-xs.copy()
+xt_hat = x0.copy()-xs.copy() ## x0 - xs. x0 < xs ---> x0 - xs < 0; SYSTEMET ---> 0: z = Cx ## F3_1 > F3_2
 
 X = np.zeros([N-1,4])
 Z = np.zeros([N-1,2])
@@ -98,8 +98,8 @@ for t_idx,t_val in enumerate(t[:-1]):
         zt = discrete_output_update(C_use, xt, V[t_idx][:-2]) 
         
     else:
-        yt = Model_Stochastic.StateSensor(xt[:4])
-        zt = yt[:2]
+        yt = Model_Stochastic.StateSensor(xt[:4]) ## _y_ = C_x_ = C(x - xs) = Cx0 - Cxs = y - ys
+        zt = yt[:2] # in normalized
 
     # Designed with linear system 
     xt_hat, P = KalmanFilterUpdate(xt_hat, us*0, zt, A_use, B_use, C_use, P, Q, R[:2,:2], stationary=static)
@@ -124,7 +124,7 @@ for t_idx,t_val in enumerate(t[:-1]):
     else:
         f = Model_Stochastic.FullEquation
         sol = solve_ivp(f, (t_val, t_val+delta_t), xt+xs, method='RK45',args = (us,))
-        xt = sol.y[:,-1]-xs
+        xt = sol.y[:,-1] - xs
 
 fig, ax = plt.subplots(4, 1, figsize=(12, 12))  
 for i in range(4): 

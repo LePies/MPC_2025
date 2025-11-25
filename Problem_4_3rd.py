@@ -35,6 +35,17 @@ A = np.block([
     [A,              G],
     [np.zeros((G.shape[1], A.shape[0])), np.eye(G.shape[1])]
 ])
+
+### [A, G] [x]                                    [0]
+### [0, I] [bar_d]  #### d = [bar_F3, bar_F4]     [Sigma]
+
+### [0, 0]
+### [0, 0]
+### [0, 0]
+### [0, 0]
+### [Sigma, 0]
+### [0, Sigma]
+
 B = np.block([
     [B],
     [np.zeros((G.shape[1], B.shape[1]))]
