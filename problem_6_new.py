@@ -55,7 +55,7 @@ Ad, Bd, Ed, C, Cz = Model_Stochastic.LinearizeDiscreteTime(xs_true, ds, Ts)
 Tf = 500
 N = int(Tf/delta_t)
 t = np.arange(0, Tf, delta_t)
-linear = 0
+linear = 1
 static = 1
 Hankel = 0
 disturbance_change = 1
@@ -75,10 +75,10 @@ A_use, B_use, C_use, Q_use = augment_system(A_use, B_use, C_use, E_use, Q)
 
 P = 5*np.eye(A_use.shape[0])  # Initial estimate error covariance 
 
-xt = x0.copy()-xs_true.copy()
+xt = xs_true.copy()-xs_true.copy()
 x0 = np.concatenate((x0, ds))
 xs = np.concatenate((xs_true, ds))
-xt_hat = x0.copy()-xs.copy()
+xt_hat = xs.copy()-xs.copy()
 
 X = np.zeros([N-1,4])
 Z = np.zeros([N-1,2])
@@ -98,8 +98,8 @@ for t_idx,t_val in enumerate(t[:-1]):
         zt = discrete_output_update(Cz, xt, V[t_idx][:-2]) 
         
     else:
-        yt = Model_Stochastic.StateSensor(xt[:4]) ## _y_ = C_x_ = C(x - xs) = Cx0 - Cxs = y - ys
-        zt = yt[:2] # in normalized
+        yt = Model_Stochastic.StateSensor(xt[:4])
+        zt = yt[:2]
 
     # Designed with linear system 
     xt_hat, P = KalmanFilterUpdate(xt_hat, us*0, zt, A_use, B_use, C_use, P, Q_use, R[:2,:2], stationary=static)
