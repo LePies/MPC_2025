@@ -3,6 +3,7 @@ from scipy.integrate import solve_ivp
 from scipy.optimize import fsolve
 import tqdm
 import scipy as sp
+import sys
 
 class FourTankSystem:
     def __init__(
@@ -202,10 +203,11 @@ class FourTankSystem:
 
             if is_deterministic:
                 x_new = state_new
-                x_new[4:] = d[:, i]
+                x_new[4:] = d
             else:
                 x_new = state_new
             
+            x_new = np.where(x_new < 0, 0, x_new)
             states_array[:, i] = x_new
             h_array[:, i] = self.StateSensor(states_array[:4, i])
             u_array[:, i-1] = ut

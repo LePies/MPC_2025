@@ -127,12 +127,13 @@ def Hankel_matrix(markov_params, r, s):
 
     return H, A, B, C, S
 
-def Q_matrix(Ac,Bc,Ts):
+def Q_matrix(Ac,Gc,Ts):
     # Augment A and B for matrix exponential
     n,m = Ac.shape
     M = np.zeros((n + m, n + m))
     M[:n, :n] = -Ac
-    M[:n, n:] = np.ones_like(Ac)
+    # M[:n, n:] = np.ones_like(Ac)
+    M[:n, n:] = Gc@Gc.T
     M[n:, n:] = Ac.T
     Md = sp.linalg.expm(M * Ts)
     phi11 = Md[:n, :n]
@@ -149,7 +150,10 @@ x0 = np.concatenate((x0, np.zeros(2)))
 xs = Model_Stochastic.GetSteadyState(x0, u)
 
 Ac,Bc,Ec,_,C,Cz = Model_Stochastic.LinearizeContinousTime(xs,d)
-Q = Q_matrix(Ac,Bc,delta_t)
+Gc = np.zeros((Ac.shape[0], Ec.shape[1]))
+Gc[-2,-2] = 1
+Gc[-1,-1] = 1
+Q = Q_matrix(Ac,Gc,delta_t)
 
 
 pairs = [(1, 1), (2, 1), (2, 2), (1, 2)]

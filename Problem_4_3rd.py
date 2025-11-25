@@ -6,6 +6,7 @@ import params.parameters_tank as para
 import matplotlib.pyplot as plt
 from src.KalmanFilterUpdate import KalmanFilterUpdate
 import sys
+import scipy as sp
 
 p = para.parameters()
 a1, a2, a3, a4, A1, A2, A3, A4, gamma1, gamma2, g, rho = p
@@ -27,37 +28,14 @@ A = data["A"]  # Discrete-time A matrix
 B = data["B"]  # Discrete-time B matrix
 C = data["C"]  # C matrix (same for discrete and continuous)
 D = data["D"]  # D matrix (same for discrete and continuous)
-G = data["G"]
+E = data["E"]
 Dd = data["Dd"]
+Q = data["Q"]
 
-# Use discrete-time simulation (more accurate since system is discrete-time) 
-A = np.block([
-    [A,              G],
-    [np.zeros((G.shape[1], A.shape[0])), np.eye(G.shape[1])]
-])
-
-### [A, G] [x]                                    [0]
-### [0, I] [bar_d]  #### d = [bar_F3, bar_F4]     [Sigma]
-
-### [0, 0]
-### [0, 0]
-### [0, 0]
-### [0, 0]
-### [Sigma, 0]
-### [0, Sigma]
-
-B = np.block([
-    [B],
-    [np.zeros((G.shape[1], B.shape[1]))]
-])
-C = np.block([C, Dd])
-
-print(A.shape)
-print(B.shape)
-print(C.shape)
-print(D.shape)
 
 Hankel = HankelSystem(A, B, C, D)
+
+
 
 # Operating point for linearization
 u_op = np.array([250, 325])  # Operating point inputs
@@ -73,14 +51,14 @@ amplitude = np.array([200, 150])  # Oscillation amplitude for each input
 frequency = 0.01  # Frequency in Hz (oscillation period = 1/frequency seconds)
 
 # For discrete-time simulation, we need to create time-varying input
-t_span = (0, 10*60)
+t_span = (0, 30*60)
 t_array = np.arange(t_span[0], t_span[1] + delta_t, delta_t)
 n_steps = len(t_array)
 
 # Create oscillating input array (absolute values)
 u_new_array = np.zeros((2, n_steps + 1))
 for k, t in enumerate(t_array):
-    u_new_array[:, k] = u_op*1.1 #+ amplitude * np.sin(2 * np.pi * frequency * t)
+    u_new_array[:, k] = u_op #+ amplitude * np.sin(2 * np.pi * frequency * t)
 
 # Input deviations from operating point (for Hankel system)
 u_dev_array = u_new_array - u_op[:, None]
@@ -118,8 +96,6 @@ for i, step in enumerate([0.25, 0.0]):
     xt_hat = np.zeros(A.shape[0]) 
     x_hankel = np.zeros(A.shape[0])
     P = np.eye(A.shape[0])
-    Q = data_prob5["Q"]
-    Q = Q[:A.shape[0], :A.shape[0]]
     ds = d_op
     static = True
     us = u_op
@@ -148,8 +124,8 @@ for i, step in enumerate([0.25, 0.0]):
         X_kalman[i_t, :] = xt_hat
 
         P_est[i_t, :, :] = P
-        # if i == idx_mod:
-        #     x_hankel[2] = x_hankel[2] + abs_step 
+        if i_t == idx_mod:
+            x_hankel[-2] = x_hankel[-2] + abs_step
         x_hankel = A@x_hankel + B@u
         X_hankel[i_t+1, :] = x_hankel
 
@@ -161,25 +137,15 @@ for i, step in enumerate([0.25, 0.0]):
     for i_t in range(len(t)):
         Py_est[i_t, :, :] = C @ P_est[i_t, :, :] @ C.T
 
-    axes[0, i].plot(t[:-1]/60, X_kalman[:-1, 0], 'x', label="Kalman Estimate (Hankel 1)", color='dodgerblue', markersize=2)
-    axes[0, i].fill_between(t[:-1]/60, X_kalman[:-1, 0] - 2*np.sqrt(P_est[:-1, 0, 0]), X_kalman[:-1, 0] + 2*np.sqrt(P_est[:-1, 0, 0]), color='dodgerblue', alpha=0.2)
-    axes[0, i].plot(t[:-1]/60, X_hankel[:-1, 0], label="Hankel Estimate Tank 1", ls='--', color='dodgerblue')
+    colors = ['dodgerblue', 'tomato', 'limegreen', 'orange', 'purple', 'brown', 'gray', 'pink']
+    for xj in range(X_kalman.shape[1] - 2):
+        axes[0, i].plot(t[:-1]/60, X_kalman[:-1, xj], 'x', label=f"Kalman Estimate (Hankel {xj+1})", color=colors[xj], markersize=2)
+        axes[0, i].fill_between(t[:-1]/60, X_kalman[:-1, xj] - 2*np.sqrt(P_est[:-1, xj, xj]), X_kalman[:-1, xj] + 2*np.sqrt(P_est[:-1, xj, xj]), color=colors[xj], alpha=0.2)
+        axes[0, i].plot(t[:-1]/60, X_hankel[:-1, xj], label=f"Hankel {xj+1}", ls='--', color=colors[xj])
 
-    axes[0, i].plot(t[:-1]/60, X_kalman[:-1, 1], 'x', label="Kalman Estimate (Hankel 2)", color='tomato', markersize=2)
-    axes[0, i].plot(t[:-1]/60, X_hankel[:-1, 1], label="Hankel 2", ls='--', color='tomato')
-    axes[0, i].fill_between(t[:-1]/60, X_kalman[:-1, 1] - 2*np.sqrt(P_est[:-1, 1, 1]), X_kalman[:-1, 1] + 2*np.sqrt(P_est[:-1, 1, 1]), color='tomato', alpha=0.2)
-
-    axes[0, i].plot(t/60, X_kalman[:, 2], 'x', label="Kalman Estimate (Hankel 3)", color='limegreen', markersize=2)
-    axes[0, i].plot(t/60, X_hankel[:, 2], label="Hankel 3", ls='--', color='limegreen')
-    axes[0, i].fill_between(t/60, X_kalman[:, 2] - 2*np.sqrt(P_est[:, 2, 2]), X_kalman[:, 2] + 2*np.sqrt(P_est[:, 2, 2]), color='limegreen', alpha=0.2)
-
-    axes[0, i].plot(t/60, X_kalman[:, 3], 'x', label="Kalman Estimate (Hankel 4)", color='orange', markersize=2)
-    axes[0, i].plot(t/60, X_hankel[:, 3], label="Hankel 4", ls='--', color='orange')
-    axes[0, i].fill_between(t/60, X_kalman[:, 3] - 2*np.sqrt(P_est[:, 3, 3]), X_kalman[:, 3] + 2*np.sqrt(P_est[:, 3, 3]), color='orange', alpha=0.2)
-
-    axes[0, i].legend()
-    axes[0, i].grid(True, alpha=0.5)
-    axes[0, i].set_title('Hankel states')
+    axes[0, i].legend(fontsize=5)
+    axes[0, i].grid(True, alpha=0.2)
+    axes[0, i].set_title('Kalman and Hankel', fontsize=10)
 
     axes[2, i].plot(t[:-1]/60, Y_est[:-1, 0] + hs_op[0], 'x', label="Output 1 (Kalman)", color='dodgerblue', markersize=2)
     axes[2, i].plot(t[:-1]/60, Y_est[:-1, 1] + hs_op[1], 'x', label="Output 2 (Kalman)", color='tomato', markersize=2)
@@ -205,15 +171,15 @@ for i, step in enumerate([0.25, 0.0]):
     axes[1, i].plot(t/60, d_array[0, :n_steps-1], label="Disturbance 1", color='gray')
     axes[1, i].plot(t/60, d_array[1, :n_steps-1], label="Disturbance 2", color='magenta')
 
-    axes[1, i].plot(t/60, X_hankel[:, -2] + d_op[0], label="Hankel 3", color='gray', ls='--')
-    axes[1, i].plot(t/60, X_hankel[:, -1] + d_op[1], label="Hankel 4", color='magenta', ls='--')
+    axes[1, i].plot(t/60, X_hankel[:, -2] + d_op[0], label="Hankel 5", color='gray', ls='--')
+    axes[1, i].plot(t/60, X_hankel[:, -1] + d_op[1], label="Hankel 6", color='magenta', ls='--')
     axes[1, i].grid(True, alpha=0.5)
     axes[1, i].set_ylabel('Flow [m³/s]')
     axes[1, i].set_title('Disturbance')
     axes[1, i].legend()
 
-axes[0, 0].set_title(r'u'+' Step of 0.1\n'+r'd'+' Step of 0.1\nHankel states')
-axes[0, 1].set_title(r'u'+' Step of 0.1\n'+r'd'+' Step of 0.0\nHankel states')
+axes[0, 0].set_title(r'd'+' Step of 0.1\nHankel states')
+axes[0, 1].set_title(r'd'+' Step of 0.0\nHankel states')
 axes[1, 1].set_ylabel('')
 axes[2, 1].set_ylabel('')
 

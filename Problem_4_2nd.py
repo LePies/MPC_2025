@@ -274,6 +274,24 @@ for i in range(2):
 plt.savefig(f'figures/Problem4/Problem_4_Markow.png')
 plt.close()
 
+# Populate disturbance columns when option "d" is used
+if len(sys.argv) > 1 and sys.argv[1] == "d":
+    # Column 2: disturbance 1 -> outputs
+    # H(2,0) = idx 4: disturbance 1 -> output 1
+    H_d1_o1 = H(2, 0, tk_array)
+    markov_mat[0, 2, :] = H_d1_o1[:,0]
+    # H(2,1) = idx 5: disturbance 1 -> output 2 (zero, but populate anyway)
+    H_d1_o2 = H(2, 1, tk_array)
+    markov_mat[1, 2, :] = H_d1_o2[:,0]
+    
+    # Column 3: disturbance 2 -> outputs
+    # H(3,0) = idx 6: disturbance 2 -> output 1 (zero, but populate anyway)
+    H_d2_o1 = H(3, 0, tk_array)
+    markov_mat[0, 3, :] = H_d2_o1[:,0]
+    # H(3,1) = idx 7: disturbance 2 -> output 2
+    H_d2_o2 = H(3, 1, tk_array)
+    markov_mat[1, 3, :] = H_d2_o2[:,0]
+
 S_11 = np.cumsum(H(0, 0, t_array))
 S_12 = np.cumsum(H(0, 1, t_array))
 S_21 = np.cumsum(H(1, 0, t_array))
@@ -450,7 +468,7 @@ for k in range(markov_mat.shape[2]):
 markov_params_hankel = markov_params[1:]  # Skip H_0, take H_1 through H_N
 # Increase Hankel matrix size to better capture system dynamics
 # For 2x2 system: r=8, s=8 gives (16, 16) matrix (good balance)
-N = 1000
+N = 20
 H_hankel, A, B, C, S = Hankel_matrix(markov_params_hankel[:N, :, :], 8, 8)
 # print(H_hankel)
 
@@ -471,32 +489,66 @@ plt.close()
 # D should be markov_params[0] which is the feedthrough matrix
 D = markov_params[0]
 
-data = {
-    "A": A,
-    "B": B,
-    "C": C,
-    "D": D,
-    "markov_mat": markov_mat
-}
+def get_Q(Ad, Gc):
+    A_cont = sp.linalg.logm(Ad) / delta_t
 
+    Mat = np.block([[-A, Gc@Gc.T], [np.zeros((A.shape[0], A.shape[1])), A.T]])
+    PHI = sp.linalg.expm(Mat * delta_t)
 
+    Phi_11 = PHI[:A.shape[0], :A.shape[0]]
+    Phi_12 = PHI[:A.shape[0], A.shape[0]:]
+    Phi_22 = PHI[A.shape[0]:, A.shape[0]:]
 
+    return Phi_22.T @ Phi_12
 
 if len(sys.argv) > 1 and sys.argv[1] == "d":
-    print(B.shape)
-    Gd = B[:, 2:]
+    Ed = B[:, 2:]
     B = B[:, :2]
-    data["B"] = B
-    data["G"] = Gd
     Dd = D[:, 2:]
     D = D[:, :2]
-    data["D"] = D
-    data["Dd"] = Dd
-    print("Gd shape: ", Gd.shape)
+
+    A = np.block([
+        [A,              Ed],
+        [np.zeros((Ed.shape[1], A.shape[0])), np.eye(Ed.shape[1])]
+    ])
+
+
+    B = np.block([
+        [B],
+        [np.zeros((Ed.shape[1], B.shape[1]))]
+    ])
+    
+    C = np.block([C, Dd])
+
+    Gc = np.zeros((A.shape[0], Ed.shape[1]))
+    Gc[-2,-2] = 1
+    Gc[-1,-1] = 1
+
+    Q = get_Q(A, Gc)
+    data = {
+        "A": A,
+        "B": B,
+        "C": C,
+        "D": D,
+        "markov_mat": markov_mat,
+        "E": Ed,
+        "Dd": Dd,
+        "Q": Q
+    }
+    print("E shape: ", Ed.shape)
     print("Dd shape: ", Dd.shape)
     np.savez("Results/Problem4/Problem_4_estimates_d.npz", **data)
 else:
+    data = {
+        "A": A,
+        "B": B,
+        "C": C,
+        "D": D,
+        "markov_mat": markov_mat
+    }
     np.savez("Results/Problem4/Problem_4_estimates.npz", **data)
+
+
 
 print("A shape: ", data["A"].shape)
 print("B shape: ", data["B"].shape)

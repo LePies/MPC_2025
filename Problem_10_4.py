@@ -7,19 +7,19 @@ import sys
 import params.parameters_tank as para
 
 def F3_func(t):
-    if t < 250:
-        return 100
-    else:
-        return 50
+    # if t < 250:
     return 100
+    # else:
+    #     return 50
+    # return 100
 
 
 def F4_func(t):
-    if t < 250:
-        return 120
-    else:
-        return 50
+    # if t < 250:
     return 120
+    # else:
+    #     return 50
+    # return 120
 
 
 if __name__ == "__main__":
@@ -36,16 +36,24 @@ if __name__ == "__main__":
     xs = Model_Stochastic.GetSteadyState(x0, us)
     hs = xs[:2] / (rho*np.array([A1, A2]))
     data_prob4 = np.load(r"Results\Problem4\Problem_4_estimates_d.npz")
-    data_prob5 = np.load(r"Results\Problem5\Problem_5_estimates.npz")
-    Q = data_prob5["Q"][:4, :4]
 
     data = data_prob4
 
-    Ad = data["A"]
-    Bd = data["B"]
-    Cz = data["C"]
-    G = data["G"]
-    good_goal = np.array([111.05, 100.0])  # Height of Tank 1 and 2
+    A = data["A"]
+    B = data["B"]
+    C = data["C"]
+    E = data["E"]
+    Dd = data["Dd"]
+    Q = data["Q"]
+    
+    Ad = A[:-2, :-2]
+    Bd = B[:-2, :]
+    Cz = C[:, :-2]
+
+    good_goal = hs + np.array([10, 10])  # Height of Tank 1 and 2
+
+    hs = Model_Stochastic.StateSensor(xs[:4])[:2]
+    good_goal = hs + np.array([10, 10])
 
     u_op = np.array([250, 325])  # Operating point inputs
 
@@ -91,17 +99,16 @@ if __name__ == "__main__":
 
     mpc_controller = MPC(
         N=N_mpc,
-        u0=u0_mpc,
-        x0=x0_mpc,
-        w0=ds,
+        us=u_op,
+        hs=hs,
         U_bar=U_bar,
         R_bar=R_bar,
         A=Ad, 
         B=Bd, 
         C=Cz, 
-        G=G,
         Q=Q,
-        R=R,
+        E=E,
+        R=R[:2,:2],
         hadd=hs,
         problem=problem, 
         Wz=Wz,      # Increased from 1: strong tracking priority
@@ -150,13 +157,13 @@ if __name__ == "__main__":
     fig.savefig(f'figures/Problem10/Problem_10_Heights_4.png')
     plt.close()
 
-    X_hankel = np.zeros((4, len(t)))
+    X_hankel = np.zeros((Ad.shape[0], len(t)))
 
     for (i, t_i) in enumerate(t[:-1]):
         u_i = u[:, i]
         X_hankel[:, i+1] = Ad@X_hankel[:, i] + Bd@u_i
 
-    Y_hankel = Cz@X_hankel + h[1:2,0]
+    Y_hankel = Cz@X_hankel + hs[1:2]
 
 
 

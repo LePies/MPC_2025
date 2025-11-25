@@ -3,6 +3,18 @@ import numpy as np
 from src.QPSolver import qpsolver
 from src.KalmanFilterUpdate import KalmanFilterUpdate
 
+## The problem looks like this:
+## x = A x + B u + G d + w_k  -- w_k in N(0, Q)
+## y = C x + D u
+
+## [x]   [A, G] [x]   [B]    
+## [d] = [0, I] [d] + [0] [u] + w_k
+
+##             [x]
+## y =  [C, 0] [d] + D u
+
+
+
 class MPC:
     """
     Model Predictive Control (MPC) class for solving unconstrained MPC problems.
@@ -14,18 +26,17 @@ class MPC:
     """
     def __init__(
         self,
-        x0, 
-        w0, 
         N, 
+        us,
+        hs,
         U_bar, 
-        R_bar, 
-        G, 
+        R_bar,
         A, 
         B, 
         C, 
         Q, 
         R,
-        u0 = None,
+        E,
         problem="Problem 5",
         Wz=None,
         Wu=None,
@@ -81,28 +92,23 @@ class MPC:
             Input rate weighting matrix (nu x nu). Default: identity
         """
         self.problem = problem
-        self.hadd = hadd
+        self.hs = hs
+        self.us = us
         self._initialize()
 
         self.N = N
         self.U_bar = self._compute_Ubar(U_bar)  # Flatten to (N*nu,) vector
         self.R_bar = self._compute_Rbar(R_bar)  # Flatten to (N*ny,) vector
-        self.w0 = w0
-        self.wk = self.w0
         self.Wz = Wz
         self.Wu = Wu
         self.Wdu = Wdu
         self.C = C
         self.A = A
-        self.G = G # or E
         self.B = B
         self.Q = Q
         self.R = R
-        self.x0 = x0
-        self.xk = self.x0
         self.noutput = C.shape[0]  # Number of outputs (ny)
         self.ninput = B.shape[1]   # Number of inputs (nu) - FIXED: Added to track input dimension shape of Uk and Umin, Umax
-        self.u0 = u0
         self.uk = self.compute_uk()
         self.Rmax = Rmax
         self.Rmin = Rmin
@@ -110,13 +116,13 @@ class MPC:
         self.predicted_y_mpc = []
         self.predicted_Px = []
         self.predicted_Py = []
+        self.E = E
         
         # Pre-compute matrices that don't change during runtime
         self.Gamma = self.compute_gamma()  # Markov parameter matrix for output prediction
         self.Lamb = self.compute_lamb()
         self.phi_x = self.compute_phi_x()  # State-to-output prediction matrix
         self.phi_w = self.compute_phi_w()  # Disturbance-to-output prediction matrix
-        self.Pk = self.compute_Pk()        # Initial covariance matrix for Kalman filter
         self.Umin = self.compute_Umin(Umin)
         self.Umax = self.compute_Umax(Umax)
         self.Dmin = self.compute_Dmin(Dmin) # delta u min
@@ -127,31 +133,46 @@ class MPC:
         self.Ws1, self.Ws2 = self.compute_Ws(Ws1, Ws2)
         self.Wt1, self.Wt2 = self.compute_Wt(Wt1, Wt2)
 
-        self.set_xk(x0)
+
+        self._set_kallman_filter()
+        self.set_xk()
+
+    def _set_kallman_filter(self):
+        self.A_kf = np.block([
+            [self.A, self.E],
+            [np.zeros((self.E.shape[1], self.A.shape[0])), np.eye(self.E.shape[1])]
+        ])
+        self.B_kf = np.block([
+            [self.B],
+            [np.zeros((self.E.shape[1], self.B.shape[1]))]
+        ])
+        self.C_kf = np.block([self.C, np.zeros((self.C.shape[0], self.E.shape[1]))])
+        self.Pk = 5*np.eye(self.A_kf.shape[0])
 
     def _initialize(self):
         self.uadd = np.array([250, 325])
 
-    def set_xk(self, xk):
-        self.xk = xk
-        self.xk_mpc = np.zeros(self.A.shape[0]) # xk_mpc = 0
+    def set_xk(self):
+        self.xk = np.zeros(self.A.shape[0])
+        self.xk_kf = np.zeros(self.A_kf.shape[0])
 
         if self.Rmin is not None:
-            self.Rmin = self.Rmin - np.tile(self.hadd, self.N)
+            self.Rmin = self.Rmin - np.tile(self.hs, self.N)
         if self.Rmax is not None:
-            self.Rmax = self.Rmax - np.tile(self.hadd, self.N)
+            self.Rmax = self.Rmax - np.tile(self.hs, self.N)
         if self.Umin is not None:
             self.Umin = self.Umin - np.tile(self.uadd, self.N)
         if self.Umax is not None:
             self.Umax = self.Umax - np.tile(self.uadd, self.N)
 
-        self.predicted_x_mpc.append(self.xk_mpc)
-        self.predicted_y_mpc.append(self.C@self.xk_mpc)
+        self.predicted_x_mpc.append(self.xk_kf)
+        self.predicted_y_mpc.append(self.C_kf@self.xk_kf)
         self.predicted_Px.append(self.Pk)
-        self.predicted_Py.append(self.C@self.Pk@self.C.T)
+        self.predicted_Py.append(self.C_kf@self.Pk@self.C_kf.T)
+        self.wk = np.zeros(self.E.shape[1])
 
     def _compute_Rbar(self, Rbar):
-        return (Rbar - self.hadd).flatten()
+        return (Rbar - self.hs).flatten()
 
     def _compute_Ubar(self, Ubar):
         return (Ubar - self.uadd).flatten()
@@ -209,12 +230,7 @@ class MPC:
             raise ValueError("Invalid Rmin shape")
 
     def compute_uk(self):
-        if self.u0 is None:
-            return np.zeros(self.ninput)
-        elif self.u0.shape[0] == self.ninput:
-            return self.u0
-        else:
-            raise ValueError("Invalid u0 shape")
+        return np.zeros(self.B.shape[1])
         
     def compute_Umin(self, Umin):
         if Umin is None:
@@ -256,24 +272,13 @@ class MPC:
         else:
             raise ValueError("Invalid Dmax shape")
 
-    def compute_Pk(self):
-        """
-        Get initial covariance matrix for Kalman filter.
-        
-        Returns:
-        --------
-        Pk : numpy.ndarray
-            Initial covariance matrix (nx x nx)
-        """
-        Pk = 5*np.eye(self.A.shape[0])
-        return Pk
-
     def reset_control(self):
         """Reset the Kalman filter covariance matrix to initial value."""
         self.Pk = self.compute_Pk()
-        self.xk = self.x0
-        self.wk = self.w0
-        self.uk = self.compute_uk()
+        self.xk = np.zeros(self.A.shape[0])
+        self.xk_kf = np.zeros(self.A_kf.shape[0])
+        self.wk = np.zeros(self.A.shape[0])
+        self.uk = np.zeros(self.B.shape[1])
 
     def compute_phi_x(self):
         """
@@ -302,7 +307,7 @@ class MPC:
         phiw : numpy.ndarray
             Disturbance-to-output matrix (nw x N*ny)
         """
-        phiw = np.block([(self.C@(self.A**i)@self.G).T for i in range(self.N)])
+        phiw = np.block([(self.C@(self.A**i)@self.E).T for i in range(self.N)])
         return phiw
         
     def compute_gamma(self):
@@ -326,7 +331,7 @@ class MPC:
             D = np.zeros((self.noutput, self.ninput))  # D matrix (usually zero for Problem 4)
             # Check if D is stored, otherwise assume zero
             try:
-                data = np.load("Results/Problem4/Problem_4_estimates.npz")
+                data = np.load("Results/Problem4/Problem_4_estimates_d.npz")
                 if "D" in data:
                     D = data["D"]
             except:
@@ -472,7 +477,8 @@ class MPC:
 
         # Compute predicted output based on current state and disturbance
         # bk = predicted output without control action
-        bk = self.phi_x.T@self.xk_mpc + self.phi_w.T@self.wk
+        
+        bk = self.phi_x.T@self.xk + self.phi_w.T@self.wk
 
         # Compute tracking error: difference between reference and predicted output
         ck = self.R_bar - bk
@@ -595,7 +601,7 @@ class MPC:
         Wu_bar = self.kron(Wu)
         Wdu_bar = self.kron(Wdu)
 
-        bk = self.phi_x.T@self.xk_mpc + self.phi_w.T@self.wk
+        bk = self.phi_x.T@self.xk + self.phi_w.T@self.wk
         ck = self.R_bar - bk
 
         # Input Hessian: input, input rate, and output tracking terms
@@ -725,15 +731,16 @@ class MPC:
             Updated state estimate (nx x 1)
         """
         xk_new, Pk_new = KalmanFilterUpdate(
-            xt=self.xk_mpc,      # Current state estimate
+            xt=self.xk_kf,      # Current state estimate
             ut=self.uk,      # Current input
-            yt=zk - self.hadd,           # Current measurement # hadd = hs = ys[:2]
-            A=self.A,        # State transition matrix
-            B=self.B,        # Input matrix
-            C=self.C,        # Output matrix
+            yt=zk - self.hs,           # Current measurement # hadd = hs = ys[:2]
+            A=self.A_kf,        # State transition matrix
+            B=self.B_kf,        # Input matrix
+            C=self.C_kf,        # Output matrix
             P=self.Pk,       # Current covariance
             Q=self.Q,        # Process noise covariance
             R=self.R,        # Measurement noise covariance
+            stationary=True,
         )
         self.Pk = Pk_new  # Update covariance for next iteration
         return xk_new
@@ -758,15 +765,14 @@ class MPC:
             Optimal input to apply (nu x 1)
         """
         # Update state estimate with new measurement
-        self.xk_mpc = self.KalmanFilterUpdate(zk)
+        self.xk_kf = self.KalmanFilterUpdate(zk)
+        self.xk = self.xk_kf[:self.A.shape[0]]
+        self.wk = self.xk_kf[self.A.shape[0]:]
 
-        self.predicted_x_mpc.append(self.xk_mpc)
-        self.predicted_y_mpc.append(self.C@self.xk_mpc)
+        self.predicted_x_mpc.append(self.xk_kf)
+        self.predicted_y_mpc.append(self.C_kf@self.xk_kf)
         self.predicted_Px.append(self.Pk)
-        self.predicted_Py.append(self.C@self.Pk@self.C.T + self.R)
-
-        if self.xk.shape[0] > 4:
-            self.wk = self.wk[-2:]
+        self.predicted_Py.append(self.C_kf@self.Pk@self.C_kf.T + self.R)
 
         # Solve MPC optimization problem
         ufin, _ = self.MPC_qp()
