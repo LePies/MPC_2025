@@ -31,20 +31,13 @@ if __name__ == "__main__":
     x0 = np.concatenate((x0, ds))
     xs = Model_Stochastic.GetSteadyState(x0, us)
     data_prob5 = np.load(r"Results\Problem5\Problem_5_estimates.npz")
-    Q = data_prob5["Q"]
-    
+    Q = np.block([
+        [data_prob5["Q"], np.zeros((6, 2))],
+        [np.zeros((2, 6)), 0.01*np.eye(2)]
+    ])
 
     data = data_prob5
     Ad, Bd, Ed, C, Cz = Model_Stochastic.LinearizeDiscreteTime(xs, ds, delta_t)
-    print(Ad.shape)
-    print(Bd.shape)
-    print(Cz.shape)
-    
-
-    A = Ad[:-2, :-2]
-    B = Bd[:-2, :]
-    Cz = Cz[:, :-2]
-    E = Ad[:-2, -2:]
     
     good_goal = np.array([111.05, 100.0])  # Height of Tank 1 and 2
 
@@ -70,15 +63,15 @@ if __name__ == "__main__":
         hs=hs,
         U_bar=U_bar,
         R_bar=R_bar,
-        A=A,
-        B=B,
+        A=Ad,
+        B=Bd,
         C=Cz,
         Q=Q,
-        E = E,
+        E=Ed,
         R=R[:2,:2],
         problem=problem, 
         Wz=np.eye(2) * 2,      # Increased from 1: strong tracking priority
-        Wu=np.eye(2) * 1e-3,    # Decreased from 1e-1: allow more control effort
+        Wu=np.eye(2) * 0,    # Decreased from 1e-1: allow more control effort
         Wdu=np.eye(2) * 0.5,    # Decreased from 1: smoother but still responsive
     )
     
@@ -118,8 +111,6 @@ if __name__ == "__main__":
     predicted_Px = np.array(mpc_controller.predicted_Px)
     predicted_Py = np.array(mpc_controller.predicted_Py)
 
-    print(predicted_x_mpc[2,:])
-
     fig, axes = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
     axes[0].plot(t/60, predicted_x_mpc[:, 0] + xs[0], label='Predicted Tank 1', color='dodgerblue', ls='-.' )
     axes[0].plot(t/60, predicted_x_mpc[:, 1] + xs[1], label='Predicted Tank 2', color='tomato', ls='-.' )
@@ -153,3 +144,5 @@ if __name__ == "__main__":
     
     fig.savefig(f'figures/Problem8/Problem_8_Heights_5_kalman.png')
     plt.close()
+
+    print(good_goal)

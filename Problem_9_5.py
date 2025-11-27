@@ -51,7 +51,10 @@ if __name__ == "__main__":
     x0 = np.concatenate((x0, ds))
     xs = Model_Stochastic.GetSteadyState(x0, us)
     data_prob5 = np.load(r"Results\Problem5\Problem_5_estimates.npz")
-    Q = data_prob5["Q"]
+    Q = np.block([
+        [data_prob5["Q"], np.zeros((6, 2))],
+        [np.zeros((2, 6)), 0.01*np.eye(2)]
+    ])
 
     hs = Model_Stochastic.StateSensor(xs[:4])[:2]
     
@@ -59,15 +62,7 @@ if __name__ == "__main__":
 
     data = data_prob5
     Ad, Bd, Ed, C, Cz = Model_Stochastic.LinearizeDiscreteTime(xs, ds, delta_t)
-    print(Ad.shape)
-    print(Bd.shape)
-    print(Cz.shape)
-    
 
-    A = Ad[:-2, :-2]
-    B = Bd[:-2, :]
-    Cz = Cz[:, :-2]
-    E = Ad[:-2, -2:]
     # Set initial state and references based on problem type
 
     # For Problem 5: Use absolute values
@@ -87,11 +82,11 @@ if __name__ == "__main__":
         hs=hs,
         U_bar=U_bar,
         R_bar=R_bar,
-        A=A, 
-        B=B, 
+        A=Ad, 
+        B=Bd, 
         C=Cz, 
         Q=Q,
-        E=E,
+        E=Ed,
         R=R[:2,:2],
         problem=problem, 
         Wz=Wz,      # Increased from 1: strong tracking priority

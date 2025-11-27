@@ -48,19 +48,13 @@ if __name__ == "__main__":
     x0 = np.concatenate((x0, ds))
     xs = Model_Stochastic.GetSteadyState(x0, us)
     data_prob5 = np.load(r"Results\Problem5\Problem_5_estimates.npz")
-    Q = data_prob5["Q"]
+    Q = np.block([
+        [data_prob5["Q"], np.zeros((6, 2))],
+        [np.zeros((2, 6)), 0.01*np.eye(2)]
+    ])
 
     data = data_prob5
     Ad, Bd, Ed, C, Cz = Model_Stochastic.LinearizeDiscreteTime(xs, ds, delta_t)
-    print(Ad.shape)
-    print(Bd.shape)
-    print(Cz.shape)
-    
-
-    A = Ad[:-2, :-2]
-    B = Bd[:-2, :]
-    Cz = Cz[:, :-2]
-    E = Ad[:-2, -2:]
 
     u_op = np.array([250, 325])  # Operating point inputs
 
@@ -105,11 +99,11 @@ if __name__ == "__main__":
         hs=hs,
         U_bar=U_bar,
         R_bar=R_bar,
-        A=A, 
-        B=B, 
+        A=Ad, 
+        B=Bd, 
         C=Cz, 
         Q=Q,
-        E=E,
+        E=Ed,
         R=R[:2,:2],
         problem=problem, 
         Wz=Wz,
@@ -172,22 +166,22 @@ if __name__ == "__main__":
     
     axes[0].plot(t/60, x[0, :], label='Actual Tank 1', color='dodgerblue')
     axes[0].plot(t/60, x[1, :], label='Actual Tank 2', color='tomato')
-    
+
     axes[0].legend()
     axes[0].set_ylabel('mass [kg]')
     axes[0].grid(True)
     axes[0].set_title('System states')
-    
+
     axes[1].plot(t/60, predicted_y_mpc[:, 0] + hs[0], label='Predicted Output Tank 1', color='dodgerblue', ls='-.' )
     axes[1].plot(t/60, predicted_y_mpc[:, 1] + hs[1], label='Predicted Output Tank 2', color='tomato', ls='-.' )
-    
+
 
     axes[1].fill_between(t/60, predicted_y_mpc[:, 0] + hs[0] - 2*np.sqrt(predicted_Py[:, 0, 0]), predicted_y_mpc[:, 0] + hs[0] + 2*np.sqrt(predicted_Py[:, 0, 0]), color='dodgerblue', alpha=0.2)
     axes[1].fill_between(t/60, predicted_y_mpc[:, 1] + hs[1] - 2*np.sqrt(predicted_Py[:, 1, 1]), predicted_y_mpc[:, 1] + hs[1] + 2*np.sqrt(predicted_Py[:, 1, 1]), color='tomato', alpha=0.2)
-    
+
     axes[1].plot(t/60, h[0, :], label='Actual Tank 1', color='dodgerblue')
     axes[1].plot(t/60, h[1, :], label='Actual Tank 2', color='tomato')
-    
+
     axes[1].legend()
     axes[1].grid(True)
     axes[1].set_title('Height of the tanks')
