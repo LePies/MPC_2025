@@ -81,7 +81,7 @@ if __name__ == "__main__":
         hadd=hs,
         problem=problem, 
         Wz=np.eye(2) * 2,      # Increased from 1: strong tracking priority
-        Wu=np.eye(2) * 1e-3,    # Decreased from 1e-1: allow more control effort
+        Wu=np.eye(2) * 0,    # Decreased from 1e-1: allow more control effort
         Wdu=np.eye(2) * 0.5,    # Decreased from 1: smoother but still responsive
     )
 
