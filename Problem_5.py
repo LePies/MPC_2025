@@ -131,8 +131,7 @@ def Q_matrix(Ac,Gc,Ts):
     # Augment A and B for matrix exponential
     n,m = Ac.shape
     M = np.zeros((n + m, n + m))
-    M[:n, :n] = -Ac
-    # M[:n, n:] = np.ones_like(Ac)
+    M[:n, :n] = -Ac 
     M[:n, n:] = Gc@Gc.T
     M[n:, n:] = Ac.T
     Md = sp.linalg.expm(M * Ts)
