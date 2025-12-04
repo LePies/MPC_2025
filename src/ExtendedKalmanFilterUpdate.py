@@ -7,7 +7,7 @@ def ExtendedKalmanFilterUpdate(xt, yt, f_func, sigma, h_func, F_jacobian_func, H
 
     A = F_jacobian_func(xt)
     
-
+    
 
     # Predict state
     xt = sp.linalg.solve_continuous_lyapunov(A,Q)
