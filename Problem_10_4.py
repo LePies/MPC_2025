@@ -110,7 +110,7 @@ if __name__ == "__main__":
         E=E,
         R=R[:2,:2],
         hadd=hs,
-        problem=problem, 
+        problem=problem,
         Wz=Wz,      # Increased from 1: strong tracking priority
         Wu=Wu,    # Decreased from 1e-1: allow more control effort
         Wdu=Wdu,    # Decreased from 1: smoother but still responsive

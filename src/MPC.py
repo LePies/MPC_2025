@@ -52,6 +52,7 @@ class MPC:
         Rmax = None,
         Rmin = None,
         hadd = np.zeros(2),
+        tune_mpc=False,
     ) -> None:
         """
         Initialize the MPC controller.
@@ -137,6 +138,8 @@ class MPC:
         self._set_kallman_filter()
         self.set_xk()
 
+        if self.Wu is None:
+            self.Wu = np.zeros((self.ninput, self.ninput))
     def _set_kallman_filter(self):
         self.A_kf = np.block([
             [self.A, self.E],
@@ -151,6 +154,10 @@ class MPC:
 
     def _initialize(self):
         self.uadd = np.array([250, 325])
+    
+
+    def compute_Pk(self):
+        return 5*np.eye(self.A_kf.shape[0])
 
     def set_xk(self):
         self.xk = np.zeros(self.A.shape[0])

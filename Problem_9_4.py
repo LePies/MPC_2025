@@ -93,12 +93,15 @@ if __name__ == "__main__":
         Umax=Umax,
         Dmin=Dmin,
         Dmax=Dmax,
+        tune_mpc=False,
     )
 
     xs_closedloop = xs
     
 
     t, x, u, d, h = Model_Stochastic.ClosedLoop(np.array([0, N_t]), xs_closedloop, mpc_controller)
+
+    print(h.shape, t.shape)
 
     fig, axes = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
     axes[0].plot(t/60, h[0, :], label='Height of Tank 1', color='dodgerblue')
