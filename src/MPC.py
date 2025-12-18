@@ -787,3 +787,5 @@ class MPC:
         # Apply first input from optimal sequence (receding horizon)
         self.uk = ufin[:, 0]
         return self.uk + self.uadd
+    
+    
