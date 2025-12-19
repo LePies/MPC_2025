@@ -37,7 +37,7 @@ if __name__ == "__main__":
     xs = Model_Stochastic.GetSteadyState(x0, us)
     hs = xs[:2] / (rho*np.array([A1, A2]))
     data_prob4 = np.load(r"Results\Problem4\Problem_4_estimates_d.npz")
-    data_prob5 = np.load(r"Results\Problem5\Problem_5_estimates.npz")
+
     data = data_prob4
 
     A = data["A"]
@@ -53,7 +53,9 @@ if __name__ == "__main__":
 
     good_goal = hs + np.array([10, 10])  # Height of Tank 1 and 2
 
-  
+    hs = Model_Stochastic.StateSensor(xs[:4])[:2]
+    good_goal = hs + np.array([10, 10])
+
     u_op = np.array([250, 325])  # Operating point inputs
 
     # Tuned MPC parameters for better performance
@@ -70,9 +72,32 @@ if __name__ == "__main__":
     Umax = np.array([3000, 3000])
     Dmin = np.array([-5, -10])
     Dmax = np.array([10, 5])
+
+    margin_low = np.array([10.0, 10.0])    # Very tight lower margin
+    margin_high = np.array([10.0, 10.0])   # Very tight upper margin
+
+    # For Problem 5: Use absolute values
+    Rmin = good_goal - margin_low  # Lower output bounds [cm]
+    Rmax = good_goal + margin_high  # Upper output bounds [cm]
+    print("Output constraints:")
+    print(f"  Setpoint:                 {good_goal} [cm]")
+    print(f"  Constraint range: Tank 1: [{Rmin[0]:.2f}, {Rmax[0]:.2f}], "
+            f"Tank 2: [{Rmin[1]:.2f}, {Rmax[1]:.2f}]")
+
+    slack_quad_weight = 1000.0  # Quadratic penalty - high to strongly discourage violations
+    slack_lin_weight = 10.0      # Linear penalty - lower for soft constraint behavior
+    
+    Ws2 = np.eye(2) * slack_quad_weight  # Quadratic penalty on lower bound slack (s)
+    Wt2 = np.eye(2) * slack_quad_weight  # Quadratic penalty on upper bound slack (t)
+    Ws1 = np.eye(2) * slack_lin_weight   # Linear penalty on lower bound slack (s)
+    Wt1 = np.eye(2) * slack_lin_weight   # Linear penalty on upper bound slack (t)
+    
+    Wz = np.eye(2) * 2.0      # Strong tracking priority
+    Wu = np.eye(2) * 1e-3      # Low penalty - allow sufficient control effort
+    Wdu = np.eye(2) * 0.5      # Moderate penalty - smooth but responsive
     
     R = np.eye(2)*100
-    
+
     mpc_controller = MPC(
         N=N_mpc,
         us=u_op,
@@ -86,20 +111,25 @@ if __name__ == "__main__":
         E=E,
         R=R[:2,:2],
         hadd=hs,
-        problem=problem, 
-        Wz=np.eye(2) * 2,      # Increased from 1: strong tracking priority
-        Wu=np.eye(2) * 1e-3,    # Decreased from 1e-1: allow more control effort
-        Wdu=np.eye(2) * 0.5,    # Decreased from 1: smoother but still responsive
+        problem=problem,
+        Wz=Wz,      # Increased from 1: strong tracking priority
+        Wu=Wu,    # Decreased from 1e-1: allow more control effort
+        Wdu=Wdu,    # Decreased from 1: smoother but still responsive
         Umin=Umin,
         Umax=Umax,
         Dmin=Dmin,
         Dmax=Dmax,
-        tune_mpc=False,
+        Rmax=Rmax,
+        Rmin=Rmin,
+        Ws2=Ws2,
+        Wt2=Wt2,
+        Ws1=Ws1,
+        Wt1=Wt1,
     )
 
     xs_closedloop = xs
     
 
-    t, x, u, d, h = Model_Stochastic.ClosedLoop(np.array([0, N_t]), xs_closedloop, mpc_controller)
+    t, x, u, h = Model_Stochastic.ClosedLoop_Linearized(np.array([0, N_t]), xs_closedloop, mpc_controller)
 
-    PlotMPC_sim(t=t, h=h, u=u, x=x, R_bar=R_bar, xs=xs, hs=hs, mpc_controller=mpc_controller, file_name="Problem_9_4", problem="9")
+    PlotMPC_sim(t=t, h=h, u=u, x=x, R_bar=R_bar, xs=xs, hs=hs, mpc_controller=mpc_controller, file_name="Problem_10_4_Linearized", problem="10")

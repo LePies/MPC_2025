@@ -5,6 +5,7 @@ from params.initialize import initialize
 import matplotlib.pyplot as plt
 import sys
 import params.parameters_tank as para
+from src.PlotMPC_sim import PlotMPC_sim
 
 def F3_func(t):
     # if t < 250:
@@ -90,76 +91,4 @@ if __name__ == "__main__":
 
     t, x, u, d, h = Model_Stochastic.ClosedLoop(np.array([0, N_t]), xs_closedloop, mpc_controller)
 
-    fig, axes = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
-    axes[0].plot(t/60, h[0, :], label='Height of Tank 1', color='dodgerblue')
-    axes[0].plot(t/60, h[1, :], label='Height of Tank 2', color='tomato')
-    axes[0].plot(t/60, h[2, :], label='Height of Tank 3', color='limegreen')
-    axes[0].plot(t/60, h[3, :], label='Height of Tank 4', color='orange')
-
-    setpoint_1 = R_bar[0, 0]
-    setpoint_2 = R_bar[0, 1]
-    axes[0].plot(t/60, t*0 + setpoint_1, label='Setpoint for Tank 1', color='dodgerblue', ls='--')
-    axes[0].plot(t/60, t*0 + setpoint_2, label='Setpoint for Tank 2', color='tomato', ls='--')
-    axes[0].legend()
-    axes[0].set_xlabel('Time [min]')
-    axes[0].set_ylabel('Height [m]')
-    axes[0].grid(True)
-    axes[1].plot(t/60, u[0, :], label='Flow of Tank 1', color='dodgerblue')
-    axes[1].plot(t/60, u[1, :], label='Flow of Tank 2', color='tomato')
-    axes[1].legend()
-    axes[1].set_xlabel('Time [min]')
-    axes[1].set_ylabel('Flow [m³/s]')
-    axes[1].grid(True)
-    fig.savefig(f'figures/Problem8/Problem_8_Heights_4.png')
-    plt.close()
-
-    X_hankel = np.zeros((Ad.shape[0], len(t)))
-
-    for (i, t_i) in enumerate(t[:-1]):
-        u_i = u[:, i]
-        X_hankel[:, i+1] = Ad@X_hankel[:, i] + Bd@u_i
-
-    Y_hankel = Cz@X_hankel + hs[1:2]
-
-
-
-    predicted_x_mpc = np.array(mpc_controller.predicted_x_mpc)
-    predicted_y_mpc = np.array(mpc_controller.predicted_y_mpc)
-
-    predicted_Px = np.array(mpc_controller.predicted_Px)
-    predicted_Py = np.array(mpc_controller.predicted_Py)
-
-    fig, axes = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
-    axes[0].plot(t/60, predicted_x_mpc[:, 0], label='Predicted Hankel 1', color='dodgerblue', ls='-.' )
-    axes[0].plot(t/60, predicted_x_mpc[:, 1], label='Predicted Hankel 2', color='tomato', ls='-.' )
-
-    axes[0].plot(t/60, X_hankel[0, :], label='Hankel 1', color='dodgerblue', ls='--')
-    axes[0].plot(t/60, X_hankel[1, :], label='Hankel 2', color='tomato', ls='--')
-
-    axes[0].fill_between(t/60, predicted_x_mpc[:, 0] - 2*np.sqrt(predicted_Px[:, 0, 0]), predicted_x_mpc[:, 0] + 2*np.sqrt(predicted_Px[:, 0, 0]), color='dodgerblue', alpha=0.2)
-    axes[0].fill_between(t/60, predicted_x_mpc[:, 1] - 2*np.sqrt(predicted_Px[:, 1, 1]), predicted_x_mpc[:, 1] + 2*np.sqrt(predicted_Px[:, 1, 1]), color='tomato', alpha=0.2)
-
-    axes[0].legend()
-    axes[0].grid(True)
-    axes[0].set_title('Hankel states')
-
-    axes[1].plot(t/60, predicted_y_mpc[:, 0] + hs[0], label='Predicted Output Tank 1', color='dodgerblue', ls='-.' )
-    axes[1].plot(t/60, predicted_y_mpc[:, 1] + hs[1], label='Predicted Output Tank 2', color='tomato', ls='-.' )
-
-    axes[1].plot(t/60, h[0, :], label='Actual Tank 1', color='dodgerblue')
-    axes[1].plot(t/60, h[1, :], label='Actual Tank 2', color='tomato')
-    
-    axes[1].plot(t/60, Y_hankel[0, :], label='Hankel Output Tank 1', color='dodgerblue', ls='--')
-    axes[1].plot(t/60, Y_hankel[1, :], label='Hankel Output Tank 2', color='tomato', ls='--')
-
-    axes[1].fill_between(t/60, predicted_y_mpc[:, 0] + hs[0] - 2*np.sqrt(predicted_Py[:, 0, 0]), predicted_y_mpc[:, 0] + hs[0] + 2*np.sqrt(predicted_Py[:, 0, 0]), color='dodgerblue', alpha=0.2)
-    axes[1].fill_between(t/60, predicted_y_mpc[:, 1] + hs[1] - 2*np.sqrt(predicted_Py[:, 1, 1]), predicted_y_mpc[:, 1] + hs[1] + 2*np.sqrt(predicted_Py[:, 1, 1]), color='tomato', alpha=0.2)
-    
-    axes[1].legend()
-    axes[1].set_xlabel('Time [min]')
-    axes[1].set_ylabel('Height [m]')
-    axes[1].grid(True)
-    axes[1].set_title('Height of the tanks')
-
-    fig.savefig(f'figures/Problem8/Problem_8_Heights_4_kalman.png')
-    plt.close()
+    PlotMPC_sim(t=t, h=h, u=u, x=x, R_bar=R_bar, xs=xs, hs=hs, mpc_controller=mpc_controller, file_name="Problem_8_4", problem="8")

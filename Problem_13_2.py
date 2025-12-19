@@ -1,5 +1,5 @@
 import numpy as np
-from src.MPC_economic import MPC_economic
+from src.MPC_economic import MPC_economic_LP
 from params.initialize import initialize
 from src.FourTankSystem import FourTankSystem
 import matplotlib.pyplot as plt
@@ -20,7 +20,8 @@ c_array = 200 - 190*np.exp(-0.01*t_array)
 H = 40
 U = 1000
 
-mpc_economic = MPC_economic(c_array, H, U, hs=hs, N=30)
+N = 30
+mpc_economic = MPC_economic_LP(c_array, H, U, hs=hs, N=N, Dmin = -np.ones(N*2)*50, Dmax = np.ones(N*2)*50)
 # print(mpc_economic.kron(mpc_economic.Wu).shape)
 
 
@@ -50,7 +51,7 @@ axes[3].legend()
 axes[3].set_xlabel('Time [min]')
 axes[3].set_ylabel('Cost')
 axes[3].grid(True)
-plt.savefig('figures/Problem13/problem_13_1_plot.png')
+plt.savefig('figures/Problem13/problem_13_2_plot.png')
 plt.show()
 
 print(np.sum(c_array * (u[0, :] + u[1, :])))

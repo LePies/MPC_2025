@@ -101,6 +101,6 @@ if __name__ == "__main__":
     
     xs_closedloop = xs
 
-    t, x, u, d, h = Model_Stochastic.ClosedLoop(np.array([0, N_t]), xs_closedloop, mpc_controller)
+    t, x, u, h = Model_Stochastic.ClosedLoop_Linearized(np.array([0, N_t]), xs_closedloop, mpc_controller)
 
-    PlotMPC_sim(t=t, h=h, u=u, x=x, R_bar=R_bar, xs=xs, hs=hs, mpc_controller=mpc_controller, file_name="Problem_9_5", problem="9")
+    PlotMPC_sim(t=t, h=h, u=u, x=x, R_bar=R_bar, xs=xs, hs=hs, mpc_controller=mpc_controller, file_name="Problem_9_5_Linearized", problem="9")

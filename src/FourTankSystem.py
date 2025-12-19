@@ -296,3 +296,44 @@ class FourTankSystem:
         
         return Ad, Bd, Ed, C, Cz
 
+    def ClosedLoop_Linearized(self, tspan, states, controller, d = np.array([])):
+        if np.size(tspan) != 2:
+            raise ValueError("Wrong shape of tspan was given\ntspan must be a 2x1 array")
+        self.CheckInputDimension(states, d)
+        us = controller.us
+        hs = controller.hs
+
+        Ad, Bd, Ed, C, Cz = self.LinearizeDiscreteTime(states, d, self.delta_t)
+        data_prob5 = np.load(r"Results\Problem5\Problem_5_estimates.npz")
+        Q = data_prob5["Q"]
+
+        t0 = tspan[0]
+        tf = tspan[1] 
+        t_array = np.arange(t0, tf, self.delta_t)
+
+        states, is_deterministic = self.SetLoopStates(states, d)
+
+        states_array = np.zeros([states.shape[0], t_array.shape[0]])
+        states_array[:, 0] = 0
+
+        h_array = np.zeros([self.R_s.shape[0], t_array.shape[0]])
+        h_array[:, 0] = self.StateSensor(states_array[:4, 0])
+
+        u_array = np.zeros([2, t_array.shape[0]])
+
+        f = self.StateEquation if is_deterministic else self.FullEquation
+
+        for i in tqdm.tqdm(range(1, t_array.shape[0]), desc="Simulating closed loop", unit="step", leave=True, ncols=80):
+            zt = self.StateOutput(h_array[:, i-1])
+            # if controller is an array, select the appropriate controller for the current step 
+            if isinstance(controller, (list, tuple, np.ndarray)):
+                ut = controller[:, i-1] - us
+            else: 
+                ut = controller.update(zt) - us
+            
+            dt = np.random.multivariate_normal(mean=np.zeros(self.R_d.shape[0]), cov=self.R_d, size=1)[0][:2]
+            states_array[:, i] = Ad@states_array[:, i-1] + Bd@ut + Ed@dt
+            h_array[:, i] = self.StateSensor(states_array[:4, i] + states[:4])
+            u_array[:, i-1] = ut
+
+        return t_array, states_array + states[:, None], u_array + us[:, None], h_array

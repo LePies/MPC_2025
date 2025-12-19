@@ -723,7 +723,7 @@ class MPC:
         else:
             return self.MPC_input_constraints()
 
-    def KalmanFilterUpdate(self, zk):
+    def _KalmanFilterUpdate(self, zk):
         """
         Update state estimate using Kalman filter.
 
@@ -772,7 +772,7 @@ class MPC:
             Optimal input to apply (nu x 1)
         """
         # Update state estimate with new measurement
-        self.xk_kf = self.KalmanFilterUpdate(zk)
+        self.xk_kf = self._KalmanFilterUpdate(zk)
         self.xk = self.xk_kf[:self.A.shape[0]]
         self.wk = self.xk_kf[self.A.shape[0]:]
 
