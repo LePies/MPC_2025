@@ -91,7 +91,7 @@ else:
 
 A_use = A_est
 B_use = B_est
-C_use = C_est
+C_use = C_est 
 
 for t_idx,t_val in enumerate(t[:-1]): 
 

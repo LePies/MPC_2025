@@ -13,8 +13,8 @@ addpath(         'cdekf'               );
 
 
 % Set casadiPath
-% casadiPath = '';
-% addpath( genpath(casadiPath) );
+casadiPath = 'C:\'; 
+addpath( casadiPath);
 
 %% Save Plot/Data
 
@@ -37,9 +37,9 @@ Ns    = (tf-t0)/Ts;             % []        :   sampling intervals
 M     = 10;                     % []        :   euler steps in OCP
 
 % Initial condition
-x0 = [ 5000.0 ; 5000.0 ; 5000.0; 5000.0 ];
 u0 = [  200.0 ;  250.0 ];
 d0 = [   40.0 ;   60.0 ];
+x0 = [ 5000.0 ; 5000.0 ; 5000.0; 5000.0 ;d0;d0];
 
 % Boundaries
 uMin = [   0.0;   0.0 ];      	% [cm^3/s]	:   input lower bound

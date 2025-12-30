@@ -10,7 +10,7 @@ class FourTankSystem:
         self,
         R_s,
         R_d,
-        p,
+        p, 
         delta_t,
         sigma_f3 = 20,
         sigma_f4 = 20,

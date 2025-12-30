@@ -54,8 +54,8 @@ A3 = 380.1327;
 A4 = 380.1327;
 theta.A = [ A1; A2; A3; A4 ];
 % split-values of input flows
-gamma1 = 0.65;
-gamma2 = 0.55;
+gamma1 = 0.45;
+gamma2 = 0.40;
 theta.gamma = [ gamma1; gamma2 ];
 % gravitational accelration
 theta.g   = 981;
@@ -69,6 +69,7 @@ theta.R = 1.0e0*eye(theta.ny);
 % Process noise level
 theta.nLevel = 0.1;
 
+theta.ad = 1;
 
 % Get driftFun and measurementFun derivatives with CasADi
 import casadi.*

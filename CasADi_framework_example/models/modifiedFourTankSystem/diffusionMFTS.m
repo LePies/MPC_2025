@@ -1,57 +1,21 @@
 function [ sigma ] = diffusionMFTS( t, x, u, d, theta )
-%--------------------------------------------------------------------------
-%   Author(s):
-%       Morten Ryberg Wahlgreen
-%
-%   Email:
-%       morwa@dtu.dk
-%
-%--------------------------------------------------------------------------
-%   Call:
-%       [ f ] = diffusionMFTS( t, x, u, d, theta )
-%
-%   Description:
-%       evalutates a diffusion term for the modified four tank system 
-%       (MFTS), which models variations in the inlet flow streams.
-%
-%   Inputs:
-%       t       :     time
-%       x       :     masses of tank contents
-%       u       :     manipulated liquid in-flows
-%       d       :     disturbance in-flows
-%       theta   :     parameters
-%
-%   Outputs:
-%       sigma   :     diffusion term
-%
-%--------------------------------------------------------------------------
+% Model 3: noise only on disturbance states (x5,x6)
 
-%% Un-pack Parameters and Variables
+if isfield(theta,'sigmaD')
+    s = theta.sigmaD;
+elseif isfield(theta,'sigma_d')
+    s = theta.sigma_d;
+else
+    s = 1; % default std scaling
+end
 
-% Variables
-% ...
-%
-% ...
-% inputs
-F  = u(1:2);
-% ...
+if isscalar(s)
+    S = s*eye(2);
+else
+    S = diag(s(:));
+end
 
-% Parameters
-% ...
-%
-% ...
-% model parameters
-gamma  = theta.gamma;
-nLevel = theta.nLevel;
-% ...
-
-%% Diffusion Function
-
-% Multiplicative noise on inlet flows
-sigma = nLevel*[    gamma(1)*F(1)        , 0.0	                    ;   
-                    0.0                  , gamma(2)*F(2)            ;    
-                    0.0                  , ( 1 - gamma(2) )*F(2)    ;  
-                    ( 1 - gamma(1) )*F(1), 0.0                      ];     
-% ...
+sigma = [ zeros(4,2);
+          S ];
 
 end
