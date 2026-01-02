@@ -26,7 +26,7 @@ Who is working on what porblems
 - [x] P1 (Draw)
 - [x] P2.3 Write
 - [x] P5
-- [ ] P6
+- [x] P6
 - [ ] P12
 
 

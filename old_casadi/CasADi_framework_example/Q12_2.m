@@ -13,8 +13,8 @@ addpath(         'cdekf'               );
 
 
 % Set casadiPath
-% casadiPath = '';
-% addpath( genpath(casadiPath) );
+casadiPath = 'C:\casadi';
+addpath( genpath(casadiPath) );
 
 %% Save Plot/Data
 

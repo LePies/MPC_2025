@@ -26,23 +26,25 @@ def augment_system(A,B,C,E,Q):
     return A_aug, B_aug, C_aug, Q_aug
 
 np.random.seed(42)
-data_prob5 = np.load(r"Results\Problem5\Problem_5_estimates.npz")
-Q = data_prob5["Q"]
+#data_prob5 = np.load(r"Results\Problem4\Problem_4_estimates.npz")#np.load(r"Results\Problem5\Problem_5_estimates.npz")
+data_probQ = np.load(r"Results\Problem5\Problem_5_estimates.npz")
+Q = data_probQ["Q"]
+
 
 Ts = 1
 
 def F3_func(t):
-    if t < 250:
-        return 100
-    else:
-        return 50
+    # if t < 250:
+    #     return 100
+    # else:
+    #     return 50
     return 100
     
 def F4_func(t):
-    if t < 250:
-        return 120
-    else:
-        return 50
+    # if t < 250:
+    #     return 120
+    # else:
+    #     return 50
     return 120
 
 x0, us, ds, p , R, R_d, delta_t = initialize()
@@ -51,6 +53,8 @@ Model_Stochastic = FourTankSystem(R_s=R, R_d=R_d*0, p=p, delta_t=delta_t,F3=F3_f
 # Discrete Kalman filter parameters 
 x0 = np.concatenate((x0, ds))  
 xs_true = Model_Stochastic.GetSteadyState(x0, us)
+zs_true = Model_Stochastic.StateSensor(xs_true[:4])[:2]
+print(xs_true)
 Ad, Bd, Ed, C, Cz = Model_Stochastic.LinearizeDiscreteTime(xs_true, ds, Ts)
 Tf = 500
 N = int(Tf/delta_t)
@@ -58,7 +62,7 @@ t = np.arange(0, Tf, delta_t)
 linear = 1
 static = 1
 Hankel = 0
-disturbance_change = 1
+disturbance_change = 0
 
 if disturbance_change:
     d = np.ones([len(t),2])*ds
@@ -80,7 +84,7 @@ x0 = np.concatenate((x0, ds))
 xs = np.concatenate((xs_true, ds))
 xt_hat = xs.copy()-xs.copy()
 
-X = np.zeros([N-1,4])
+X = np.zeros([N-1,4]) 
 Z = np.zeros([N-1,2])
 D = np.zeros([N-1,2])
 U = np.zeros([N-1,2])
@@ -105,17 +109,17 @@ for t_idx,t_val in enumerate(t[:-1]):
     xt_hat, P = KalmanFilterUpdate(xt_hat, us*0, zt, A_use, B_use, C_use, P, Q_use, R[:2,:2], stationary=static)
 
     U[t_idx, :] = us
-    Z[t_idx, :] = zt + xs_true[:2]   
+    Z[t_idx, :] = zt + zs_true 
     X[t_idx, :] = xt_hat[:4] + xs_true[:4]
     D[t_idx, :] = xt_hat[4:-2] + xs_true[4:]
 
     # Estimate output based on estimated state 
     if linear:
         yt_est = discrete_output_update(C_use, xt_hat, V[t_idx][:-2])
-        Z_est[t_idx, :] = yt_est[:2] + xs_true[:2]
+        Z_est[t_idx, :] = yt_est[:2] + zs_true
     else:
         yt_est = Model_Stochastic.StateSensor(xt_hat[:4])
-        Z_est[t_idx, :] = yt_est[:2] + xs_true[:2]
+        Z_est[t_idx, :] = yt_est[:2] + zs_true
 
     # Simulate next true state  
     if linear:
@@ -138,25 +142,25 @@ for i in range(4):
 ax[i].legend()
 ax[i].grid(True)
 ax[i].set_xlabel('Time')     
-fig.suptitle("Open loop of the nonlinear system\n State estimation using discrete time Kalman filter", fontsize=16)
+fig.suptitle("Open loop of the linear system in problem 5\n State estimation using discrete time linear Kalman filter", fontsize=16)
 plt.tight_layout(pad=2)
-plt.savefig(f"Figures/Problem6/KF_5_D_vary_states_nonlinear.png")
+plt.savefig(f"Figures/Problem6/KF_5_states_linear.png")
 plt.close()
-fig, ax = plt.subplots(2, 1, figsize=(12, 12))  
+fig, ax = plt.subplots(2, 1, figsize=(12, 12)) 
+ax[0].plot(t[:-1], Z[:, 0],'--', label='True height of Tank 1', color="black")
+ax[0].plot(t[:-1], Z_est[:, 0], '*-', label='Kalman estimate of height of Tank 1', color="dodgerblue") 
+ax[1].plot(t[:-1], Z[:, 1],'--', label='True height of Tank 2', color="black")
+ax[1].plot(t[:-1], Z_est[:, 1], '*-', label='Kalman estimate of height of Tank 2', color="tomato")
 for i in range(2):
-    ax[i].plot(t[:-1], Z[:, i]/100,'--', label='True state', color="black")
-    ax[i].plot(t[:-1], Z_est[:, i]/100, '*-', label='Kalman estimate', color="red")
-    ax[i].set_title(f'$z_{{{i+1},t}}$')
-    ax[i].legend()
+    ax[i].legend(fontsize=18)
     ax[i].grid(True)
-    ax[i].set_xticklabels([]) 
+    #ax[i].set_xticklabels([]) 
+    ax[i].set_ylabel('Height [m]',fontsize=16)
     ax[i].set_xlabel('') 
-ax[i].legend()
-ax[i].grid(True)
-ax[i].set_xlabel('Time')     
-fig.suptitle("Open loop of the nonlinear system\n State estimation using discrete time Kalman filter", fontsize=16)
+ax[i].set_xlabel('Time [min]',fontsize=16)     
+fig.suptitle("Open loop of the linear system of problem 4\n State estimation using discrete time Kalman filter", fontsize=20)
 plt.tight_layout(pad=2)
-plt.savefig(f"Figures/Problem6/KF_5_D_vary_output_nonlinear.png")
+plt.savefig(f"Figures/Problem6/KF_4_output_linear.png")
 plt.close()
 
 fig, ax = plt.subplots(2, 1, figsize=(12, 12)) 
@@ -173,8 +177,8 @@ for i,VEC, label, title in zip(range(2),[D,U],["d","u"],["Disturbance Estimates"
     ax[i].legend()
     ax[i].grid(True)
 ax[i].set_xlabel('Time')
-fig.suptitle("Control input and disturbance estimated using discrete time Kalman filter with nonlinear system", fontsize=16)
+fig.suptitle("Control input and disturbance estimated using discrete time Kalman filter with linear system", fontsize=16)
 plt.tight_layout(pad=2)
 
-plt.savefig(f"Figures/Problem6/KF_5_D_vary_input_nonlinear.png")
+plt.savefig(f"Figures/Problem6/KF_5_input_linear.png")
 plt.close()

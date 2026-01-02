@@ -84,6 +84,7 @@ for i, step in enumerate([0.25, 0.0]):
     idx_mod = len(t_array)//3
     d_array = np.copy(d_array_original)
     d_array[0, idx_mod:] = d_array[0, idx_mod:]*(1 + step)
+    #d_array[1, idx_mod:] = d_array[1, idx_mod:]*(1 + step*2)
 
     t, x, u, d, h = Model.OpenLoop((t_span[0], t_span[1]), xs_op, u_array, d_array)
 
@@ -92,14 +93,13 @@ for i, step in enumerate([0.25, 0.0]):
     h_dev = h - hs_op[:, None]  # Deviations from operating point
     y_model = Model.StateOutput(h_dev)  # Get 2 outputs (tanks 1 and 2) 
 
-
     xt_hat = np.zeros(A.shape[0]) 
     x_hankel = np.zeros(A.shape[0])
     P = np.eye(A.shape[0])
     ds = d_op
     static = True
     us = u_op
-    xs = xs_op
+    xs = np.concatenate((xs_op, ds))
     X_kalman = np.zeros((len(t), A.shape[0]))
     X_hankel = np.zeros((len(t), A.shape[0]))
 
@@ -129,7 +129,8 @@ for i, step in enumerate([0.25, 0.0]):
         x_hankel = A@x_hankel + B@u
         X_hankel[i_t+1, :] = x_hankel
 
-        yt = C@x_hankel + D@u
+        vt = np.random.multivariate_normal(mean=np.zeros(R.shape[0]),  cov=R, size=1)
+        yt = C@x_hankel + D@u + vt
         Y_est[i_t+1, :] = C@xt_hat + D@u
 
     # Compute output covariance for each time step 
@@ -141,18 +142,17 @@ for i, step in enumerate([0.25, 0.0]):
     for xj in range(X_kalman.shape[1] - 2):
         axes[0, i].plot(t[:-1]/60, X_kalman[:-1, xj], 'x', label=f"Kalman Estimate (Hankel {xj+1})", color=colors[xj], markersize=2)
         axes[0, i].fill_between(t[:-1]/60, X_kalman[:-1, xj] - 2*np.sqrt(P_est[:-1, xj, xj]), X_kalman[:-1, xj] + 2*np.sqrt(P_est[:-1, xj, xj]), color=colors[xj], alpha=0.2)
-        axes[0, i].plot(t[:-1]/60, X_hankel[:-1, xj], label=f"Hankel {xj+1}", ls='--', color=colors[xj])
-
-    axes[0, i].legend(fontsize=5)
+        axes[0, i].plot(t[:-1]/60, X_hankel[:-1, xj], label=f"True Hankel states {xj+1}", ls='--', color=colors[xj])
+        #OBS
+    axes[0, i].legend(fontsize=10)
     axes[0, i].grid(True, alpha=0.2)
     axes[0, i].set_title('Kalman and Hankel', fontsize=10)
 
-    axes[2, i].plot(t[:-1]/60, Y_est[:-1, 0] + hs_op[0], 'x', label="Output 1 (Kalman)", color='dodgerblue', markersize=2)
-    axes[2, i].plot(t[:-1]/60, Y_est[:-1, 1] + hs_op[1], 'x', label="Output 2 (Kalman)", color='tomato', markersize=2)
+    axes[2, i].plot(t[:-1]/60, Y_est[:-1, 0] + hs_op[0], 'x', label="Height of Tank 1 (Kalman)", color='dodgerblue', markersize=2)
+    axes[2, i].plot(t[:-1]/60, Y_est[:-1, 1] + hs_op[1], 'x', label="Height of Tank 2 (Kalman)", color='tomato', markersize=2)
 
-    axes[2, i].plot(t[:-1]/60, y_model[0, :-1] + hs_op[0], label="Output 1 (Model)", color='dodgerblue')
-    axes[2, i].plot(t[:-1]/60, y_model[1, :-1] + hs_op[1], label="Output 2 (Model)", color='tomato')
-
+    axes[2, i].plot(t[:-1]/60, y_model[0, :-1] + hs_op[0], label="Height of Tank 1 (True)", color='dodgerblue')
+    axes[2, i].plot(t[:-1]/60, y_model[1, :-1] + hs_op[1], label="Height of Tank 2 (True)", color='tomato')
     axes[2, i].fill_between(t[:-1]/60, hs_op[0] + Y_est[:-1, 0] - 2*np.sqrt(Py_est[:-1, 0, 0]), hs_op[0] + Y_est[:-1, 0] + 2*np.sqrt(Py_est[:-1, 0, 0]), color='dodgerblue', alpha=0.2)
     axes[2, i].fill_between(t[:-1]/60, hs_op[1] + Y_est[:-1, 1] - 2*np.sqrt(Py_est[:-1, 1, 1]), hs_op[1] + Y_est[:-1, 1] + 2*np.sqrt(Py_est[:-1, 1, 1]), color='tomato', alpha=0.2)
 
@@ -175,11 +175,11 @@ for i, step in enumerate([0.25, 0.0]):
     axes[1, i].plot(t/60, X_hankel[:, -1] + d_op[1], label="Hankel 6", color='magenta', ls='--')
     axes[1, i].grid(True, alpha=0.5)
     axes[1, i].set_ylabel('Flow [m³/s]')
-    axes[1, i].set_title('Disturbance')
+    axes[1, i].set_title('Disturbance input')
     axes[1, i].legend()
 
-axes[0, 0].set_title(r'd'+' Step of 0.1\nHankel states')
-axes[0, 1].set_title(r'd'+' Step of 0.0\nHankel states')
+axes[0, 0].set_title('Hankel states with step change in disturbance')
+axes[0, 1].set_title('Hankel states with no step change in disturbance')
 axes[1, 1].set_ylabel('')
 axes[2, 1].set_ylabel('')
 

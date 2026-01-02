@@ -12,10 +12,10 @@ std = pd.read_excel(
     sheet_name="EKF_Std"
 )
 
-std_x1 = std["std_x1"]
-std_x2 = std["std_x2"]
-std_x3 = std["std_x3"]
-std_x4 = std["std_x4"]
+std_x1 = std["std_x1"]+50
+std_x2 = std["std_x2"]+50
+std_x3 = std["std_x3"]+50
+std_x4 = std["std_x4"]+50
 
 # Extract signals
 time = data["time_min"]

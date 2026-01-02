@@ -6,7 +6,6 @@ def solve_riccati(A,C,R,Q) -> np.ndarray:
 
     # Changing to scipy notation: 
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.solve_discrete_are.html
-    
     A_scipy = A.T
     B_scipy = C.T
 
@@ -34,7 +33,6 @@ def KalmanFilterUpdate(
             P = solve_riccati(A,C,R,Q)
         except np.linalg.LinAlgError:
             # Fall back to non-stationary update if DARE solver fails
-            # (e.g., when system has eigenvalues on unit circle)
             P = A@(P-kappa@C@P)@A.T+Q
     else:
         P = A@(P-kappa@C@P)@A.T+Q
