@@ -11,6 +11,10 @@ std = pd.read_excel(
     r"C:\Users\maria\OneDrive - Danmarks Tekniske Universitet\Kandidat\4_semester\Model predictive control\MPC_2025\old_casadi\CasADi_framework_example\Problem12_2_EKF_Data.xlsx",
     sheet_name="EKF_Std"
 )
+true_states = pd.read_excel(
+    r"C:\Users\maria\OneDrive - Danmarks Tekniske Universitet\Kandidat\4_semester\Model predictive control\MPC_2025\old_casadi\CasADi_framework_example\Problem12_2_EKF_Data.xlsx",
+    sheet_name="True_States_Sampled"
+)
 
 std_x1 = std["std_x1"]+50
 std_x2 = std["std_x2"]+50
@@ -31,17 +35,24 @@ x2_hat = data["x2_hat_kg"]
 x3_hat = data["x3_hat_kg"]
 x4_hat = data["x4_hat_kg"]
 
+x1_true = true_states["x1_true_kg"]
+x2_true = true_states["x2_true_kg"]
+x3_true = true_states["x3_true_kg"]
+x4_true = true_states["x4_true_kg"]
+
 # ------------------- Plot ------------------- #
 plt.figure(figsize=(12, 8))
 
 # ---- Subplot 1: Outputs ----
 plt.subplot(2, 1, 1)
 
-plt.plot(time, z1_hat, color='dodgerblue', linewidth=3, label=r'Estimated height of Tank 1')
-plt.plot(time, z2_hat, color='tomato', linewidth=3, label=r'Estimated height of Tank 2')
 
-plt.scatter(time, y1, s=25, marker='.', label=r'Measured height of Tank 1')
-plt.scatter(time, y2, s=25, marker='.', label=r'Measured height of Tank 2')
+plt.plot(time, y1, 'k.', markersize=8, label=r'True $z_1$')
+plt.plot(time, y2, 'k.', markersize=8, label=r'True $z_2$')
+
+plt.plot(time, z1_hat, color='dodgerblue', linewidth=3, label=r'EKF $z_1$')
+plt.plot(time, z2_hat, color='tomato', linewidth=3, label=r'EKF $z_2$')
+
 
 plt.grid(True)
 plt.ylabel('Height [m]')
@@ -54,7 +65,11 @@ plt.subplot(2, 1, 2)
 
 plt.subplot(2, 1, 2)
 
-plt.plot(time, x1_hat, color='dodgerblue', linewidth=3, label='Tank 1')
+plt.plot(time, x1_true, 'k.', markersize=8, label=r'True $x_1$')
+plt.plot(time, x2_true, 'k.', markersize=8, label=r'True $x_2$')
+plt.plot(time, x3_true, 'k.', markersize=8, label=r'True $x_3$')
+plt.plot(time, x4_true, 'k.', markersize=8, label=r'True $x_4$')
+plt.plot(time, x1_hat, color='dodgerblue', linewidth=3, label=r'EFK $x_1$')
 plt.fill_between(
     time,
     x1_hat - 2*std_x1,
@@ -63,7 +78,7 @@ plt.fill_between(
     alpha=0.9
 )
 
-plt.plot(time, x2_hat, color='tomato', linewidth=3, label='Tank 2')
+plt.plot(time, x2_hat, color='tomato', linewidth=3, label=r'EKF $x_2$')
 plt.fill_between(
     time,
     x2_hat - 2*std_x2,
@@ -72,12 +87,13 @@ plt.fill_between(
     alpha=0.9
 )
 
-plt.plot(time, x3_hat, color='limegreen', linewidth=3, label=r'Estimated mass of Tank 3')
-plt.plot(time, x4_hat, color='orange', linewidth=3, label=r'Estimated mass of Tank 4')
+plt.plot(time, x3_hat, color='limegreen', linewidth=3, label=r'EKF $x_3$')
+plt.plot(time, x4_hat, color='orange', linewidth=3, label=r'EKF $x_4$')
+
 
 plt.grid(True)
 plt.xlabel('Time [min]')
-plt.ylabel('Mass [kg]')
+plt.ylabel('Mass [g]')
 plt.legend(ncol=2)
 plt.xlim(0, 20)
 
