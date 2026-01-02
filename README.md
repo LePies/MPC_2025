@@ -23,9 +23,9 @@ Who is working on what porblems
 
 **Marianna**
 
-- [ ] P1 (Draw)
-- [ ] P2.3 Write
-- [ ] P5
+- [x] P1 (Draw)
+- [x] P2.3 Write
+- [x] P5
 - [ ] P6
 - [ ] P12
 

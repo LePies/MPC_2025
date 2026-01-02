@@ -214,26 +214,26 @@ time = np.arange(N)
 
 # Impulse response (Markov parameters) 
 fig, axes = plt.subplots(p, m, figsize=(10, 8), sharex=True)
-fig.suptitle("Discrete-time Markov Parameters (Impulse Response Coefficients)", fontsize=14)
+fig.suptitle("")#Discrete-time Markov Parameters (Impulse Response Coefficients)", fontsize=14)
 
 for i in range(p):
     for j in range(m):
         hij = H[:, i, j]
         ax = axes[i, j]
         ax.plot(time/60, hij)
-        ax.set_title(f"y{i+1} \u2190 u{j+1}")
+        ax.set_title(f"$H_{{{i+1}{j+1}}}$")
         ax.grid(True)
 
         # The leftmost column
         if j == 0:
-            ax.set_ylabel(rf"$y_k$  $(H_k)_{{{i+1},{j+1}}}$")
+            ax.set_ylabel(rf"Markov parameters")
 
         else:
             ax.set_ylabel("")
 
         # The bottom row
         if i == p - 1:
-            ax.set_xlabel("time")
+            ax.set_xlabel("Time [min]") 
         else:
             ax.set_xlabel("")
 
