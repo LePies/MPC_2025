@@ -98,7 +98,7 @@ if __name__ == "__main__":
         Dmin=Dmin,
         Dmax=Dmax,
     )
-    
+
     xs_closedloop = xs
 
     t, x, u, d, h = Model_Stochastic.ClosedLoop(np.array([0, N_t]), xs_closedloop, mpc_controller)
