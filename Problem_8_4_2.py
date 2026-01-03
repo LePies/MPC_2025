@@ -23,7 +23,7 @@ def F4_func(t):
 
 
 if __name__ == "__main__":
-    problem = "Problem 5"
+    problem = "Problem 4"
     
     print(f"Simulating: {problem}")
     

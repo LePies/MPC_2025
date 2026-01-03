@@ -332,43 +332,37 @@ class MPC:
         Gamma : numpy.ndarray
             Markov parameter matrix (N*ny x N*nu)
         """
-        if self.problem == "Problem 4":
-            # Compute Markov parameters directly from Hankel-identified system
-            # H_0 = D, H_k = C * A^(k-1) * B for k >= 1
-            D = np.zeros((self.noutput, self.ninput))  # D matrix (usually zero for Problem 4)
-            # Check if D is stored, otherwise assume zero
-            try:
+        # Compute Markov parameters directly from Hankel-identified system
+        # H_0 = D, H_k = C * A^(k-1) * B for k >= 1
+        D = np.zeros((self.noutput, self.ninput))  # D matrix (usually zero for Problem 4)
+        # Check if D is stored, otherwise assume zero
+        try:
+            if self.problem == "Problem 4":
                 data = np.load("Results/Problem4/Problem_4_estimates_d.npz")
                 if "D" in data:
                     D = data["D"]
-            except:
-                pass
-            
-            # Compute Markov parameters: H_k = C * A^(k-1) * B for k >= 1
-            # H_0 = D
-            markov_params = []
-            markov_params.append(D)  # H_0
-            
-            A_pow = np.eye(self.A.shape[0])  # A^0 = I
-            for k in range(1, self.N + 1):
-                H_k = self.C @ A_pow @ self.B
-                markov_params.append(H_k)
-                A_pow = self.A @ A_pow  # A^k
-            
-            # Convert to array format: (N+1, ny, nu)
-            markov_array = np.array(markov_params)  # Shape: (N+1, ny, nu)
-            
-            # Reshape for Gamma matrix construction: (ny, nu*(N+1))
-            markov_mat_test = markov_array.transpose(1, 0, 2).reshape(self.noutput, -1)
-            
-        elif self.problem == "Problem 5":
-            # Load pre-computed Markov parameters from file
-            data = np.load("Results/Problem5/Problem_5_estimates.npz")
-            markov_mat = data["markov_mat"]
-            # Reshape Markov parameters for easier indexing
-            markov_mat_test = markov_mat[:, :, :self.N].reshape(2, -1)
-        else:
-            raise ValueError("Invalid problem")
+            elif self.problem == "Problem 5":
+                data = np.load("Results/Problem5/Problem_5_estimates.npz")
+                if "D" in data:
+                    D = data["D"]
+            else:
+                raise ValueError("Invalid problem")
+        except:
+            pass
+        
+        # Compute Markov parameters: H_k = C * A^(k-1) * B for k >= 1
+        # H_0 = D
+        markov_params = []
+        markov_params.append(D)  # H_0
+        
+        A_pow = np.eye(self.A.shape[0])  # A^0 = I
+        for k in range(1, self.N + 1):
+            H_k = self.C @ A_pow @ self.B
+            markov_params.append(H_k)
+            A_pow = self.A @ A_pow  # A^k
+        
+        # Convert to array format: (N+1, ny, nu)
+        markov_array = np.array(markov_params)  # Shape: (N+1, ny, nu)
 
         # Initialize Gamma matrix
         Gamma = np.zeros((self.N*self.noutput, self.N*self.ninput))
@@ -380,40 +374,27 @@ class MPC:
         #   - Rows i to N-1: H_1, H_2, ..., H_{N-i} (Markov parameters)
         # So: Gamma[j*ny:(j+1)*ny, i*nu:(i+1)*nu] = H_{j-i+1} if j >= i, else 0
         
-        if self.problem == "Problem 4":
-            # For Problem 4, use computed markov_array
-            # markov_array[0] = H_0 = D (not used in Gamma, as we start from H_1)
-            # markov_array[k] = H_k = C * A^(k-1) * B for k >= 1
+        for i in range(self.N):  # Column block i (input at time i)
+            # Get Markov parameters H_1, H_2, ..., H_{N-i}
+            markov_col = []
+            for k in range(1, self.N - i + 1):  # H_1 to H_{N-i}
+                markov_col.append(markov_array[k])
             
-            for i in range(self.N):  # Column block i (input at time i)
-                # Get Markov parameters H_1, H_2, ..., H_{N-i}
-                markov_col = []
-                for k in range(1, self.N - i + 1):  # H_1 to H_{N-i}
-                    markov_col.append(markov_array[k])
+            if len(markov_col) > 0:
+                # Stack Markov parameters: shape (N-i, ny, nu)
+                markov_block = np.stack(markov_col, axis=0)  # (N-i, ny, nu)
+                # Reshape to (ny*(N-i), nu)
+                markov_reshaped = markov_block.transpose(1, 0, 2).reshape(
+                    self.noutput, -1
+                )  # (ny, nu*(N-i))
                 
-                if len(markov_col) > 0:
-                    # Stack Markov parameters: shape (N-i, ny, nu)
-                    markov_block = np.stack(markov_col, axis=0)  # (N-i, ny, nu)
-                    # Reshape to (ny*(N-i), nu)
-                    markov_reshaped = markov_block.transpose(1, 0, 2).reshape(
-                        self.noutput, -1
-                    )  # (ny, nu*(N-i))
-                    
-                    # Pad with zeros at the beginning (for rows 0 to i-1)
-                    markov_padded = np.block([
-                        [np.zeros((self.noutput, self.ninput*i)), markov_reshaped]
-                    ])  # (ny, nu*N)
-                    
-                    # Transpose and place in Gamma matrix
-                    Gamma[:, self.ninput*i:self.ninput*(i+1)] = markov_padded.T
-        else:
-            # For Problem 5, use the original method
-            for i in range(self.N):
-                markov_input = markov_mat_test[:, :self.ninput*(self.N-i)]
-                markov_input_padded = np.block([
-                    [np.zeros((self.noutput, self.ninput*i)), markov_input]
-                ])
-                Gamma[:, self.ninput*i:self.ninput*(i+1)] = markov_input_padded.T
+                # Pad with zeros at the beginning (for rows 0 to i-1)
+                markov_padded = np.block([
+                    [np.zeros((self.noutput, self.ninput*i)), markov_reshaped]
+                ])  # (ny, nu*N)
+                
+                # Transpose and place in Gamma matrix
+                Gamma[:, self.ninput*i:self.ninput*(i+1)] = markov_padded.T
 
         return Gamma
     
