@@ -1,5 +1,8 @@
 # MPC 2025 - Model Predictive Control Exam Project
 
+## Oliver Mohr & Mariana De Sá
+#### s214703 & s201205
+
 This repository contains the implementation of Model Predictive Control (MPC) algorithms applied to a **Four Tank System**. The project covers system identification, state estimation, and various MPC formulations including constrained MPC and economic MPC.
 
 ---
