@@ -78,7 +78,7 @@ if __name__ == "__main__":
     # Wu: Low value (1e-3) to allow sufficient control effort without excessive penalty
     # Wdu: Moderate value (0.8) for smooth but responsive input changes
     mpc_controller = MPC(
-        N=1000, #N_mpc, 
+        N=N_mpc, 
         us=u_op,
         hs=hs,
         U_bar=U_bar,
@@ -99,15 +99,6 @@ if __name__ == "__main__":
         Dmax=Dmax,
     )
 
-    plt.matshow(mpc_controller.Gamma)
-    plt.colorbar()
-    plt.show()
-    plt.matshow(np.block([
-        [data["markov_mat"][:, :2, 1], np.zeros((2, 2))],
-        [data["markov_mat"][:, :2, 2], data["markov_mat"][:, :2, 1]]]))
-    plt.colorbar()
-    plt.show()
-    sys.exit()
     xs_closedloop = xs
 
     t, x, u, d, h = Model_Stochastic.ClosedLoop(np.array([0, N_t]), xs_closedloop, mpc_controller)
