@@ -13,8 +13,8 @@ addpath(         'cdekf'               );
 
 
 % Set casadiPath
-casadiPath = 'C:\'; 
-addpath( casadiPath);
+casadiPath = 'C:\casadi';
+addpath( genpath(casadiPath) );
 
 %% Save Plot/Data
 
@@ -25,21 +25,21 @@ savePlot = 0;
 name      = 'MFTSCollocationClosedLoop';
 figPath   = './figures/';
 
-%% Simulation Info 
+%% Simulation Info
 
 % Simulation period and sampling time
 t0    = 0;                      % [s]       :   initial time
-tf    = 60*60;                  % [s]       :   final time
-Ts    = 15.0;                   % [s]       :   sampling time
+tf    = 60*20;                  % [s]       :   final time
+Ts    = 1.0;                   % [s]       :   sampling time
 Nsim  = 10;                     % []        :   euler-maruyama steps in simulation
-N     = 4.0*10.0;               % []        :   discrete control horizon 
+N     = 30;               % []        :   discrete control horizon 
 Ns    = (tf-t0)/Ts;             % []        :   sampling intervals
 M     = 10;                     % []        :   euler steps in OCP
 
 % Initial condition
-u0 = [  200.0 ;  250.0 ];
-d0 = [   40.0 ;   60.0 ];
-x0 = [ 5000.0 ; 5000.0 ; 5000.0; 5000.0 ;d0;d0];
+u0 = [  250.0 ;  325.0 ];
+d0 = [   100.0 ;   120.0 ];
+x0 = [21362.92718669; 19317.4122346; 11195.65652256;  8530.21545886;d0];
 
 % Boundaries
 uMin = [   0.0;   0.0 ];      	% [cm^3/s]	:   input lower bound
@@ -70,20 +70,21 @@ nu = pSim.nu;
 ny = pSim.ny;
 nw = pSim.nw;
 
-%% Input and Disturbance Initialisation 
+%% Input and Disturbance Initialisation
 
 % Initialize
 D = repmat( d0, 1, Ns+N );
 
 %% Setpoint
 
+
 % Define setpoints
 zBar = zeros( nz, Ns+N*M );
-zBar(1, 1:round(Ns/2) ) = 50.0;
-zBar(2, 1:round(Ns/2) ) = 30.0;
+zBar(1, 1:round(Ns/2) ) = 65.92613999080046;
+zBar(2, 1:round(Ns/2) ) = 60.36251677743895;
 
-zBar(1, round(Ns/2)+1:end ) = 35.0;
-zBar(2, round(Ns/2)+1:end ) = 45.0;
+zBar(1, round(Ns/2)+1:end ) = 65.92613999080046;
+zBar(2, round(Ns/2)+1:end ) = 60.36251677743895;
 
 %% Solve OCP
 
@@ -102,7 +103,7 @@ z       = outputFun(0, x, pCtrl);           % Compute symbolic output
 zbar    = opti.parameter(nz, size(z,2));    % Make output target symbolic
 
 % 
-ukm1Cas = opti.parameter(nu, 1);            % Previous input 
+ukm1Cas = opti.parameter(nu, 1);            % Previous input
 
 % Objectives (output target tracking and input rate of movement penalty)
 alpha = 0.995;
@@ -115,11 +116,12 @@ phidu = sum((u(:, 1) - ukm1Cas).^2) + ...
 % Define optimal control problem (OCP)
 % ...
 % objective
-opti.minimize( alpha*phiz + ( 1 - alpha )*phidu );
+opti.minimize( alpha*phiz + ( 1 - alpha )*phidu); 
 % constraints
 opti.subject_to( uMin(1) <= u(1,:) <= uMax(1) );
 opti.subject_to( uMin(2) <= u(2,:) <= uMax(2) );
 opti.subject_to( 0.0     <= x(:)              );
+opti.subjecto_to()
 
 % options
 p_opts = struct;
@@ -183,7 +185,7 @@ xk   = x0;
 
 % CDEKF states
 xkm1km1 = x0;
-Pkm1km1 = 1.0e-5*eye(nx);
+Pkm1km1 = 5*eye(nx);%1.0e-5*eye(nx);
 
 % Variables to save previous inputs and disturbances
 ukm1 = u0;
@@ -193,7 +195,7 @@ dkm1 = d0;
 for k = 1:Ns
     fprintf("Iteration %4d of %4d... \n", k, Ns);
     
-    % ---------------------- NMPC ---------------------- % 
+    % ---------------------- NMPC ---------------------- %
     % Measurement 
     yk = measurementFunSim(tk, xk, pSim) + v(:, k);
 
@@ -205,11 +207,11 @@ for k = 1:Ns
     [ xkk, Pkk ] = cdEKFFiltering( tk, yk, xkkm1, Pkkm1, ...
                                         measurementFun, pCtrl );
     
-    % Save for next iteration  
+    % Save for next iteration
     xkm1km1 = xkk;
     Pkm1km1 = Pkk;
 
-    % Disturbance in horizon 
+    % Disturbance in horizon
     Dk = D(:, k:k+N-1);
 
     % Target in horizon
@@ -223,7 +225,7 @@ for k = 1:Ns
     opti.set_value( ukm1Cas, ukm1  );       % Previous inputs
 
     opti.set_initial( x, X0 );          % State initial condition for OCP
-    opti.set_initial( u, U0 );          % Input initial condition for OCP 
+    opti.set_initial( u, U0 );          % Input initial condition for OCP
     timeCasadiSetup = toc;
 
     % Solve OCP
@@ -285,7 +287,7 @@ end
 Y(:, end) = measurementFunSim(tk, xk, pSim) + v(:, end);
 
 
-%% Plot
+%% Plot 
 
 Z = outputFun( 0, X, pSim );
 
@@ -400,6 +402,67 @@ ylim( dLim )
 legend( 'location', 'north', 'orientation', 'horizontal', 'numcolumns', 3 )
 set(gca, 'fontsize', fs)
 hold off
+
+%% Export data to Excel (12.4 NMPC + CDEKF)
+
+filename = 'Problem12_4_NMPC_Data.xlsx';
+
+% Time vectors
+t_samp = (t0:Ts:tf)';            % Ns+1 x 1
+t_samp_min = t_samp/60;
+
+T_min = T/60;                    % (Ns*Nsim+1) x 1
+
+% True outputs along full trajectory
+Z = outputFun(0, X, pSim);
+
+% True outputs sampled at measurement instants (for clean comparison)
+idx = 1:Nsim:(Ns*Nsim+1);
+Zsamp = Z(:, idx);
+
+% ---------- Sheet: Continuous trajectory (for smooth lines) ----------
+Cont_table = table( ...
+    T_min, ...
+    X(1,:)'/1000, X(2,:)'/1000, X(3,:)'/1000, X(4,:)'/1000, ...
+    Z(1,:)', Z(2,:)', ...
+    'VariableNames', {'time_min','x1_kg','x2_kg','x3_kg','x4_kg','z1','z2'} );
+
+writetable(Cont_table, filename, 'Sheet', 'Continuous');
+
+% ---------- Sheet: Measurements + true outputs at sampling instants ----------
+Meas_table = table( ...
+    t_samp_min, ...
+    Y(1,:)', Y(2,:)', ...
+    Zsamp(1,:)', Zsamp(2,:)', ...
+    'VariableNames', {'time_min','y1_meas','y2_meas','z1_true_samp','z2_true_samp'} );
+
+writetable(Meas_table, filename, 'Sheet', 'Measurements');
+
+% ---------- Sheet: Inputs (stairs in your plot) ----------
+Inputs_table = table( ...
+    t_samp_min(1:end-1), ...
+    U(1,:)', U(2,:)', ...
+    'VariableNames', {'time_min','u1','u2'} );
+
+writetable(Inputs_table, filename, 'Sheet', 'Inputs');
+
+% ---------- Sheet: Disturbances ----------
+Dist_table = table( ...
+    t_samp_min, ...
+    D(1,1:Ns+1)', D(2,1:Ns+1)', ...
+    'VariableNames', {'time_min','d1','d2'} );
+
+writetable(Dist_table, filename, 'Sheet', 'Disturbances');
+
+% ---------- Sheet: Targets (zBar used in your stairs plot) ----------
+Targets_table = table( ...
+    t_samp_min(1:end-1), ...
+    zBar(1,1:Ns)', zBar(2,1:Ns)', ...
+    'VariableNames', {'time_min','zbar1','zbar2'} );
+
+writetable(Targets_table, filename, 'Sheet', 'Targets');
+
+fprintf('NMPC + EKF data exported to %s\n', filename);
 
 
 %% Save Data and Illustration

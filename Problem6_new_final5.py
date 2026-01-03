@@ -23,7 +23,7 @@ def augment_system(A, B, C, E, Q):
                       [np.zeros((2, m))]])
     C_aug = np.block([C, np.zeros((p, 2))])
     Q_aug = np.block([[Q, np.zeros((n, 2))],
-                      [np.zeros((2, n)), 0.01 * np.eye(2)]])
+                      [np.zeros((2, n)), np.eye(2)]])
     return A_aug, B_aug, C_aug, Q_aug
 
 np.random.seed(42)
@@ -190,7 +190,7 @@ def plot_disturbances(ax, res):
     tt = res["t"]
     Dh, Dt, sd = res["D_hat"], res["D_true"], res["sd"]
     colors = ["purple", "magenta"]
-    labels = ["$d_1$", "$d_2$"]
+    labels = [r"$\bar{d}_1$", r"$\bar{d}_2$"]
     for i in range(2):
         ax.plot((tt/60)[:-1], Dt[:-1, i], ".", color="black", ms=2, alpha=0.9,linewidth=1.6, label=f"True {labels[i]}")
         ax.plot((tt/60)[:-1], Dh[:-1, i],  "--", color=colors[i], lw=2.0, label=f"KF {labels[i]}")

@@ -81,3 +81,5 @@ ax2.set_xlim(0, 20)
 plt.tight_layout()
 plt.savefig(r"Figures/Problem12/Problem_12_4_NMPC_plot.png", dpi=200)
 plt.show()
+
+

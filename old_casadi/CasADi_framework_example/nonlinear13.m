@@ -55,7 +55,489 @@ driftFunSim         = @driftMFTS;
 diffusionFunSim     = @diffusionMFTS;
 measurementFunSim   = @measurementMFTS;
 
+% Controller model (caclose all
+clear
+clc
+
+set(groot,'defaultAxesTickLabelInterpreter','latex');  
+set(groot,'defaulttextinterpreter','latex');
+set(groot,'defaultLegendInterpreter','latex');
+
+addpath(genpath( 'casadiOCPInterface' ));
+addpath(genpath( 'models'             ));
+addpath(         'util'                );
+addpath(         'cdekf'               );
+
+
+% Set casadiPath
+casadiPath = 'C:\casadi';
+addpath( genpath(casadiPath) );
+
+%% Save Plot/Data
+
+% Save booleans
+savePlot = 0;
+
+% Names and paths
+name      = 'MFTSCollocationClosedLoop';
+figPath   = './figures/';
+
+%% Simulation Info
+
+% Simulation period and sampling time
+t0    = 0;                      % [s]       :   initial time
+tf    = 60*20;                  % [s]       :   final time
+Ts    = 1.0;                   % [s]       :   sampling time
+Nsim  = 10;                     % []        :   euler-maruyama steps in simulation
+N     = 30;               % []        :   discrete control horizon 
+Ns    = (tf-t0)/Ts;             % []        :   sampling intervals
+M     = 10;                     % []        :   euler steps in OCP
+
+% Initial condition
+u0 = [  250.0 ;  325.0 ];
+d0 = [   100.0 ;   120.0 ];
+x0 = [21362.92718669; 19317.4122346; 11195.65652256;  8530.21545886;d0];
+
+% Boundaries
+uMin = [   0.0;   0.0 ];      	% [cm^3/s]	:   input lower bound
+uMax = [ 3000.0; 3000.0 ];        % [cm^3/s] 	:   input upper bound
+dMin = [   0.0;   0.0 ];        % [cm^3/s]	:   disturbance lower bound
+dMax = [ 100.0; 100.0 ];        % [cm^3/s]	:   disturbance lower bound
+
+%% Model
+
+% Simulation model 
+pSim                = parametersMFTS();
+driftFunSim         = @driftMFTS;
+diffusionFunSim     = @diffusionMFTS;
+measurementFunSim   = @measurementMFTS;
+
 % Controller model (can be different from the simulation model)
+pCtrl           = parametersMFTS();
+driftFun        = @driftMFTS;
+diffusionFun    = @diffusionMFTS;
+outputFun       = @outputMFTS;
+measurementFun  = @measurementMFTS;
+
+% Dimensions (note: these can differ from simulation to controller model)
+nx = pSim.nx;
+nz = pSim.nz;
+nd = pSim.nd;
+nu = pSim.nu;
+ny = pSim.ny;
+nw = pSim.nw;
+
+%% Input and Disturbance Initialisation
+
+% Initialize
+D = repmat( d0, 1, Ns+N );
+
+%% Setpoint
+
+
+% Define setpoints
+zBar = zeros( nz, Ns+N*M );
+zBar(1, 1:round(Ns/2) ) = 65.92613999080046;
+zBar(2, 1:round(Ns/2) ) = 60.36251677743895;
+
+zBar(1, round(Ns/2)+1:end ) = 65.92613999080046;
+zBar(2, round(Ns/2)+1:end ) = 60.36251677743895;
+
+%% Solve OCP
+
+% Define autonomous function definition
+model = @(x, u, d, p) driftFun(0, x, u, d, pCtrl); 
+
+% Initial guess for optimization
+X0 = repmat( x0, 1, M*N+1 );
+U0 = repmat( u0, 1, N     );
+
+% Setup multiple shooting constraints
+[opti, x, u, d, x0Cas] = casadiCollocation(model, X0, U0, Ts, M, x0, ...
+                                                        D(:,1:N), pCtrl);
+z    = outputFun(0, x, pCtrl);
+zbar    = opti.parameter(nz, size(z,2));    % Make output target symbolic
+
+% 
+ukm1Cas = opti.parameter(nu, 1);            % Previous input
+
+zMin = [40; 40];
+
+% Soft constraint slack
+s = opti.variable(nz, size(z,2));
+opti.subject_to( s(:) >= 0 );
+
+zLower = zMin - s;                 % nz x (M*N+1)
+opti.subject_to( z(:) >= zLower(:) );
+
+% Objective
+c = @(t) 200-190*exp(-0.01*t);
+c_array = c((0:N-1)*Ts);           % length N
+
+int = sum(c_array.*u(1,:) + c_array.*u(2,:));
+
+rho = 1e9;
+opti.minimize(int + rho*sum(sum(s)));
+
+% Constraints
+opti.subject_to(uMin(1) <= u(1,:) <= uMax(1));
+opti.subject_to(uMin(2) <= u(2,:) <= uMax(2));
+
+
+opti.subject_to(x(:) >= 0);
+
+
+% options
+p_opts = struct;
+s_opts = struct;
+% acceptable tolerance
+s_opts.acceptable_tol             = 1.0e-7;
+s_opts.acceptable_dual_inf_tol    = 1.0e-7;
+s_opts.acceptable_constr_viol_tol = 1.0e-7;
+s_opts.acceptable_compl_inf_tol   = 1.0e-7;
+s_opts.acceptable_obj_change_tol  = 1.0e-7;
+s_opts.acceptable_iter            = 10;
+% convergence tolerance
+s_opts.tol                        = 1.0e-7;
+s_opts.dual_inf_tol               = 1.0e-7;
+s_opts.constr_viol_tol            = 1.0e-7;
+s_opts.max_iter                   = 5000;
+% misc options
+s_opts.hessian_approximation      = 'exact';    %'limited-memory';
+
+% make silent
+s_opts.print_level                = 0;
+p_opts.print_time                 = 0;
+
+% Casadi solver
+opti.solver( 'ipopt', p_opts, s_opts );
+
+
+%% Setup noise
+% Seed
+seed = 5;
+rng(seed);
+
+% Measurement noise
+Rv = pCtrl.R;
+try 
+    L = chol(Rv, 'lower');
+catch
+    L = zeros(size(Rv));
+end
+v = L*randn( ny, Ns+1 );
+
+% Process noise
+dt = Ts/Nsim; % Nsim euler-maruyama in simulation (and euler steps in CDEKF)
+dW = sqrt(dt) * randn(nw, Ts/dt, Ns);
+
+%% Closed-loop
+
+% Save for plotting
+T = zeros(Ns*Nsim+1, 1);
+T(1) = t0;
+
+X = zeros( nx, Ns*Nsim+1 );
+X(:, 1) = x0;
+
+U = zeros( nu, Ns   );
+Y = zeros( ny, Ns+1 );
+
+% Simulation data
+tk   = t0;
+xk   = x0;
+
+% CDEKF states
+xkm1km1 = x0;
+Pkm1km1 = 5*eye(nx);%1.0e-5*eye(nx);
+
+% Variables to save previous inputs and disturbances
+ukm1 = u0;
+dkm1 = d0;
+
+% Closed-loop
+for k = 1:Ns
+    fprintf("Iteration %4d of %4d... \n", k, Ns);
+    
+    % ---------------------- NMPC ---------------------- %
+    % Measurement 
+    yk = measurementFunSim(tk, xk, pSim) + v(:, k);
+
+    % State estimation
+    tspanCDEKF = [ tk-Ts, tk ];
+    [ xkkm1, Pkkm1 ] = cdEKFPredictionERK1( driftFun, diffusionFun, ...
+                    tspanCDEKF, dt, xkm1km1, Pkm1km1, ukm1, dkm1, pCtrl );
+    
+    [ xkk, Pkk ] = cdEKFFiltering( tk, yk, xkkm1, Pkkm1, ...
+                                        measurementFun, pCtrl );
+    
+    % Save for next iteration
+    xkm1km1 = xkk;
+    Pkm1km1 = Pkk;
+
+    % Disturbance in horizon
+    Dk = D(:, k:k+N-1);
+
+    % Target in horizon
+    zBark = zBar(:, k:k+N*M);
+
+    % Update CasADi OCP
+    tic
+    opti.set_value( x0Cas  , xkk   );       % Initial condition
+    opti.set_value( d      , Dk    );       % Disturbance
+    opti.set_value( zbar   , zBark );       % Target
+    opti.set_value( ukm1Cas, ukm1  );       % Previous inputs
+
+    opti.set_initial( x, X0 );          % State initial condition for OCP
+    opti.set_initial( u, U0 );          % Input initial condition for OCP
+    timeCasadiSetup = toc;
+
+    % Solve OCP
+    tic
+    sol = opti.solve();
+    timeCasadiSolve = toc;
+
+    % Extract solution
+    Xsol = sol.value(x);
+    Usol = sol.value(u);
+
+    % Implement only first inputs
+    uk   = Usol(:, 1);              % Solution to implement
+    ukm1 = uk;                      % Save as previous implemented inputs
+
+    % Update initial guess
+    X0 = [ Xsol(:, 2:end), Xsol(:, end) ];
+    U0 = [ Usol(:, 2:end), Usol(:, end) ];
+
+ 
+    % -------------------------------------------------- %
+    
+
+
+
+    % ------------------- Simulation ------------------- %
+    % Current disturbances
+    dk = D(:, k);
+
+    % Simulation time span
+    tspan = [tk tk+Ts];
+
+    % Simulate system
+    [Tsim, Xsim] = eulerMaruyama(driftFunSim, diffusionFunSim, ...
+                            tspan, dt, xk, uk, dk, pSim, dW(:,:,k));
+
+    % Save data
+%     T = [T; Tsim];
+%     X = [X, Xsim(:, 2:end)];
+
+    T(   (2:Nsim+1) + (k-1)*Nsim ) = Tsim(2:end);
+    X(:, (2:Nsim+1) + (k-1)*Nsim ) = Xsim(:,2:end);
+    U(:, k) = uk;
+    Y(:, k) = yk;
+
+    % Update time and states for next iteration
+    tk = Tsim(   end);
+    xk = Xsim(:, end);
+
+    % ------------------------------------------------ %
+
+    fprintf("    CasADi setup time: %6.4f [s].\n", timeCasadiSetup);
+    fprintf("    CasADi solve time: %6.4f [s].\n", timeCasadiSolve);
+    fprintf("Done.\n\n");
+
+end
+
+% Last measurement
+Y(:, end) = measurementFunSim(tk, xk, pSim) + v(:, end);
+
+
+%% Plot 
+
+Z = outputFun( 0, X, pSim );
+
+% Fontsize and linewidth
+fs = 24;
+lw = 6;
+ms = 10;
+
+% Limits
+tLim = [ T(1)   , T(end)               ]/60;
+xLim = [ 0.0e+0 , 1.50*max( max( X ) ) ]/1000;
+uLim = [ uMin(1), 1.25*uMax(1)         ];
+dLim = [ dMin(1), 1.25*dMax(1)         ];
+zLim = [ 0.0e+0 , 1.50*max( max( Z ) ) ];
+
+% Figure
+fig = figure('units','normalized','outerposition',[0.5 0 1.0 1.0]);
+% tiledlayout( 2, 2, 'Padding', 'tight' );
+
+t = t0:Ts:tf;
+
+% Heights
+% nexttile( 1 );
+subplot(2, 2, 1);
+plot( T/60, Z(1,:), 'linewidth', lw, ...
+    'DisplayName', '$z_{1}$', ...
+    'color', [0, 0.4470, 0.7410], 'linestyle', '-'  )
+hold on
+plot( T/60, Z(2,:), 'linewidth', lw, ...
+    'DisplayName', '$z_{2}$', ...
+    'color', [ 0.8500, 0.3250, 0.0980], 'linestyle', '-' )
+stairs( t/60, [ zBar(1,1:Ns), nan ], 'linewidth', ceil(lw/2), ...
+    'displayname', '$\bar{z}_{1}$', ...
+    'color', 'k', 'linestyle', ':'  )
+stairs( t/60, [ zBar(2,1:Ns), nan ], 'linewidth', ceil(lw/2), ...
+    'displayname', '$\bar{z}_{2}$', ...
+    'color', 'k', 'linestyle', '--' )
+plot( t/60, Y(1,:), '.', 'markersize', ms, ...
+    'color', 'r', 'displayname', '$y_1$')
+plot( t/60, Y(2,:), '.', 'markersize', ms, ...
+    'color', 'b', 'displayname', '$y_2$')
+
+% options
+grid on
+ylabel('Heights [cm]')
+xlim( tLim )
+ylim( zLim )
+legend( 'location', 'north', 'orientation', 'horizontal', 'numcolumns', 2 )
+set(gca, 'fontsize', fs)
+hold off
+
+% Masses
+% nexttile( 2 );
+subplot(2, 2, 2);
+plot( T/60, X(1,:)/1000, 'linewidth', lw, 'displayname', '$x_{1}$' )
+hold on
+plot( T/60, X(2,:)/1000, 'linewidth', lw, 'displayname', '$x_{2}$' )
+plot( T/60, X(3,:)/1000, 'linewidth', lw, 'displayname', '$x_{3}$' )
+plot( T/60, X(4,:)/1000, 'linewidth', lw, 'displayname', '$x_{4}$' )
+% options
+grid on
+ylabel('Masses [kg]')
+xlim( tLim )
+ylim( xLim )
+legend( 'location', 'north', 'orientation', 'horizontal', 'numcolumns', 2 )
+set(gca, 'fontsize', fs)
+hold off
+
+% Inlet flows
+% nexttile( 3 );
+subplot(2, 2, 3);
+stairs( t/60, [U(1,:) U(1,end)], 'linewidth', lw, ...
+    'displayname', '$F_{\mathrm{in},1}$' )
+hold on
+stairs( t/60, [U(2,:) U(2,end)], 'linewidth', lw, ...
+    'displayname', '$F_{\mathrm{in},2}$' )
+plot( [ t0, tf ]/60, [ uMin(1), uMin(1) ], 'k--', 'linewidth', ceil(lw/2), ...
+    'displayname', 'bounds' )
+p = plot( [ t0, tf ]/60, [ uMax(1), uMax(1) ], 'k--', ...
+    'linewidth', ceil(lw/2) );
+p.Annotation.LegendInformation.IconDisplayStyle = 'off';
+% options
+grid on
+ylabel('Inlet flow rates [cm$^3$/s]')
+xlabel('Time [min]')
+xlim( tLim )
+ylim( uLim )
+legend( 'location', 'north', 'orientation', 'horizontal', 'numcolumns', 3 )
+set(gca, 'fontsize', fs)
+hold off
+
+
+% Disturbance flows
+% nexttile( 4 );
+subplot(2, 2, 4);
+stairs( t/60, D(1,1:Ns+1), 'linewidth', lw, ...
+    'displayname', '$F_{d,1}$' )
+hold on
+stairs( t/60, D(2,1:Ns+1), 'linewidth', lw, ...
+    'displayname', '$F_{d,2}$' )
+plot( [ t0, tf ]/60, [ dMin(1), dMin(1) ], 'k--', 'linewidth', ceil(lw/2), ...
+    'displayname', 'bounds' )
+p = plot( [ t0, tf ]/60, [ dMax(1), dMax(1) ], 'k--', ...
+    'linewidth', ceil(lw/2) );
+p.Annotation.LegendInformation.IconDisplayStyle = 'off';
+% options
+grid on
+ylabel('Disturbance flow rates [cm$^3$/s]')
+xlabel('Time [min]')
+xlim( tLim )
+ylim( dLim )
+legend( 'location', 'north', 'orientation', 'horizontal', 'numcolumns', 3 )
+set(gca, 'fontsize', fs)
+hold off
+
+%% Export data to Excel (12.4 NMPC + CDEKF)
+
+filename = 'Problem12_4_NMPC_Data.xlsx';
+
+% Time vectors
+t_samp = (t0:Ts:tf)';            % Ns+1 x 1
+t_samp_min = t_samp/60;
+
+T_min = T/60;                    % (Ns*Nsim+1) x 1
+
+% True outputs along full trajectory
+Z = outputFun(0, X, pSim);
+
+% True outputs sampled at measurement instants (for clean comparison)
+idx = 1:Nsim:(Ns*Nsim+1);
+Zsamp = Z(:, idx);
+
+% ---------- Sheet: Continuous trajectory (for smooth lines) ----------
+Cont_table = table( ...
+    T_min, ...
+    X(1,:)'/1000, X(2,:)'/1000, X(3,:)'/1000, X(4,:)'/1000, ...
+    Z(1,:)', Z(2,:)', ...
+    'VariableNames', {'time_min','x1_kg','x2_kg','x3_kg','x4_kg','z1','z2'} );
+
+writetable(Cont_table, filename, 'Sheet', 'Continuous');
+
+% ---------- Sheet: Measurements + true outputs at sampling instants ----------
+Meas_table = table( ...
+    t_samp_min, ...
+    Y(1,:)', Y(2,:)', ...
+    Zsamp(1,:)', Zsamp(2,:)', ...
+    'VariableNames', {'time_min','y1_meas','y2_meas','z1_true_samp','z2_true_samp'} );
+
+writetable(Meas_table, filename, 'Sheet', 'Measurements');
+
+% ---------- Sheet: Inputs (stairs in your plot) ----------
+Inputs_table = table( ...
+    t_samp_min(1:end-1), ...
+    U(1,:)', U(2,:)', ...
+    'VariableNames', {'time_min','u1','u2'} );
+
+writetable(Inputs_table, filename, 'Sheet', 'Inputs');
+
+% ---------- Sheet: Disturbances ----------
+Dist_table = table( ...
+    t_samp_min, ...
+    D(1,1:Ns+1)', D(2,1:Ns+1)', ...
+    'VariableNames', {'time_min','d1','d2'} );
+
+writetable(Dist_table, filename, 'Sheet', 'Disturbances');
+
+% ---------- Sheet: Targets (zBar used in your stairs plot) ----------
+Targets_table = table( ...
+    t_samp_min(1:end-1), ...
+    zBar(1,1:Ns)', zBar(2,1:Ns)', ...
+    'VariableNames', {'time_min','zbar1','zbar2'} );
+
+writetable(Targets_table, filename, 'Sheet', 'Targets');
+
+fprintf('NMPC + EKF data exported to %s\n', filename);
+
+
+%% Save Data and Illustration
+
+% Save plot
+if savePlot
+    exportgraphics( fig, [ figPath, name, '.png' ], 'resolution', 500 );
+    close all
+end
+
+n be different from the simulation model)
 pCtrl           = parametersMFTS();
 driftFun        = @driftMFTS;
 diffusionFun    = @diffusionMFTS;
@@ -166,7 +648,7 @@ end
 v = L*randn( ny, Ns+1 );
 
 % Process noise
-dt = Ts/Nsim; % Nsim euler-maruyama in simulation (and euler steps in CDEKF)
+dt = 1;%Ts/Nsim; % Nsim euler-maruyama in simulation (and euler steps in CDEKF)
 dW = sqrt(dt) * randn(nw, Ts/dt, Ns);
 
 %% Closed-loop
